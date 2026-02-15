@@ -2,6 +2,7 @@ from requests import request
 from fastapi import FastAPI
 import time
 from schemas import QueryRequest,QueryResponse
+
 app = FastAPI(title="Self Correction RAG")
  
 @app.get("/")
