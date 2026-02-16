@@ -1,7 +1,7 @@
-from requests import request
 from fastapi import FastAPI
 import time
 from schemas import QueryRequest,QueryResponse
+from retrieval import MockRetriever
 
 app = FastAPI(title="Self Correction RAG")
  
@@ -17,7 +17,14 @@ def check_health():
     }
 @app.post("/query",response_model=QueryResponse)
 def query(req: QueryRequest):
-    return QueryResponse(answer="placeholder")
+    retriever = MockRetriever()
+    result = retriever.search(req.question)
+    contents = "\n".join([c.content for c in result.chunks])
+    return QueryResponse(answer=contents)
+
+
+
+
 
 if __name__ == "__main__":
     import uvicorn
