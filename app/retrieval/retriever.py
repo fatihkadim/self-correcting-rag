@@ -1,4 +1,4 @@
-from schemas import RetrievalResult,Chunk
+from app.schemas.retrieval import RetrievalResult, Chunk
 import time
 
 class MockRetriever:

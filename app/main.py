@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 import time
-from schemas import QueryRequest,QueryResponse
-from retrieval import MockRetriever
+from app.schemas.query import QueryRequest, QueryResponse
+from app.pipeline import RAGPipeline
+
+pipeline = RAGPipeline()
 
 app = FastAPI(title="Self Correction RAG")
  
@@ -17,11 +19,7 @@ def check_health():
     }
 @app.post("/query",response_model=QueryResponse)
 def query(req: QueryRequest):
-    retriever = MockRetriever()
-    result = retriever.search(req.question)
-    contents = "\n".join([c.content for c in result.chunks])
-    return QueryResponse(answer=contents)
-
+    return pipeline.run(request=req)
 
 
 
