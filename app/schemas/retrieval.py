@@ -4,7 +4,7 @@ class Chunk(BaseModel):
     id:str
     content:str
     source:str
-    similiarty_score:float | None = None
+    similarity_score:float | None = None
 
 class RetrievalResult(BaseModel):
     query:str

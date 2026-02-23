@@ -1,12 +1,13 @@
-from app.retrieval.retriever import MockRetriever
+from app.retrieval.retriever import QdrantRetriever
 from app.schemas.query import QueryRequest,QueryResponse
 from app.core.logger import get_logger
+
 
 logger = get_logger(__name__)
 
 class RAGPipeline:
     def __init__(self):
-        self.retriever = MockRetriever()
+        self.retriever = QdrantRetriever()
 
     
     def run(self,request: QueryRequest) -> QueryResponse:

@@ -1,0 +1,11 @@
+# ─── Web Framework ────────────────────────────────────────────────
+fastapi
+uvicorn[standard]
+
+# ─── Data Validation ──────────────────────────────────────────────
+pydantic
+pydantic-settings
+
+# ─── Vector Database & Embeddings (Sprint 5) ──────────────────────
+qdrant-client
+sentence-transformers

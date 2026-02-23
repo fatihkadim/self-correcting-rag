@@ -3,6 +3,7 @@ docs/
 
 #assets
 assets/
+
 # Python
 __pycache__/
 *.py[cod]
