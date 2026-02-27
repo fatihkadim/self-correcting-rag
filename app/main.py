@@ -14,7 +14,7 @@ def read_root():
 @app.get("/health")
 def check_health():
     return {
-        "status":"heatlhy",
+        "status":"healthy",
         "server time": time.time()
     }
 @app.post("/query",response_model=QueryResponse)
