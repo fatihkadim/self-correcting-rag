@@ -26,43 +26,46 @@ class QdrantRetriever:
         self.embedder = Embedder()
 
         self.client = QdrantClient(url=settings.qdrant_url)
-        self.client.create_collection(
-            collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=384, distance=Distance.COSINE)
-        )
-        mock = MockRetriever()
-        texts = [chunk.content for chunk in mock.documents]
-        vectors = self.embedder.embed(texts)
+        
+        # Sadece koleksiyon yoksa oluştur ve mock verileri yükle
+        if not self.client.collection_exists(COLLECTION_NAME):
+            self.client.create_collection(
+                collection_name=COLLECTION_NAME,
+                vectors_config=VectorParams(size=384, distance=Distance.COSINE)
+            )
+            mock = MockRetriever()
+            texts = [chunk.content for chunk in mock.documents]
+            vectors = self.embedder.embed(texts)
 
-        self.client.upsert(
-            collection_name=COLLECTION_NAME,
-            points=[
-                PointStruct(
-                    id=1,
-                    payload={
-                        "content": mock.documents[0].content,
-                        "source": mock.documents[0].source,
-                    },
-                    vector=vectors[0]
-                ),
-                PointStruct(
-                    id=2,
-                    payload={
-                        "content": mock.documents[1].content,
-                        "source": mock.documents[1].source,
-                    },
-                    vector=vectors[1]
-                ),
-                PointStruct(
-                    id=3,
-                    payload={
-                        "content": mock.documents[2].content,
-                        "source": mock.documents[2].source,
-                    },
-                    vector=vectors[2]
-                ),
-            ],
-        )
+            self.client.upsert(
+                collection_name=COLLECTION_NAME,
+                points=[
+                    PointStruct(
+                        id=1,
+                        payload={
+                            "content": mock.documents[0].content,
+                            "source": mock.documents[0].source,
+                        },
+                        vector=vectors[0]
+                    ),
+                    PointStruct(
+                        id=2,
+                        payload={
+                            "content": mock.documents[1].content,
+                            "source": mock.documents[1].source,
+                        },
+                        vector=vectors[1]
+                    ),
+                    PointStruct(
+                        id=3,
+                        payload={
+                            "content": mock.documents[2].content,
+                            "source": mock.documents[2].source,
+                        },
+                        vector=vectors[2]
+                    ),
+                ],
+            )
 
 
 
