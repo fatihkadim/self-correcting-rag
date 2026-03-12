@@ -9,3 +9,5 @@ pydantic-settings
 # ─── Vector Database & Embeddings (Sprint 5) ──────────────────────
 qdrant-client
 sentence-transformers
+
+openai
