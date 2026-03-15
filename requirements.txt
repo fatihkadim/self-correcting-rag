@@ -6,8 +6,11 @@ uvicorn[standard]
 pydantic
 pydantic-settings
 
-# ─── Vector Database & Embeddings (Sprint 5) ──────────────────────
+# ─── Vector Database & Embeddings ──────────────────────
 qdrant-client
 sentence-transformers
 
+# LLM
 openai
+
+pathlib

@@ -1,0 +1,6 @@
+Aşağıdaki kaynaklara dayanarak soruyu cevapla. Her iddia için kaynak numarasını [N] formatında belirt.
+
+Kaynaklar:
+{context}
+
+Soru: {question}
