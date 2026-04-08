@@ -1,0 +1,12 @@
+Aşağıda verilen metindeki doğrulanabilir iddiaları analiz et ve sadece belirtilen JSON formatında listele.
+
+Beklenen JSON Çıktı Formatı:
+[
+  {{
+    "claim": "<atomik_iddia_cümlesi>",
+    "type": "<factual | temporal | causal>"
+  }}
+]
+
+Metin:
+{answer}

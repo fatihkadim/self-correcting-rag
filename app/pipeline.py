@@ -16,9 +16,10 @@ class RAGPipeline:
         retrieval_result = self.retriever.search(request.question)
         logger.info(f"Retrieval bitti. {len(retrieval_result.chunks)} parça bilgi bulundu")
         answer = self.answer_generator.generate(request.question, retrieval_result)
-        claims = self.claim_extractor.extract(answer)
+        claims_result = self.claim_extractor.extract(answer)
+        claims_list = [c.model_dump() for c in claims_result.claims] if claims_result else []
         return QueryResponse(
             answer=answer,
             sources=[chunk.model_dump() for chunk in retrieval_result.chunks],
-            claims=claims,
+            claims=claims_list,
         )
