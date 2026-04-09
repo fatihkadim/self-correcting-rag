@@ -1,0 +1,7 @@
+Aşağıdaki iddiayı, verilen kanıtlarla karşılaştırarak değerlendir.
+
+İddia (Claim):
+{claim}
+
+Kanıtlar (Evidence):
+{evidence}
