@@ -1,9 +1,13 @@
 from app.utils.prompts import PromptLoader
 from app.generation.llm import LLMClient
+from app.core.logger import get_logger
 import json
+
+
 class LLMJudge():
-    def __init__(self,llm_client:LLMClient):
+    def __init__(self, llm_client: LLMClient):
         self.llm = llm_client
+        self.logger = get_logger(__name__)
 
     def judge(self,claim:str,evidence: list[str]):
         template = PromptLoader.load("verify_user.txt")
@@ -17,10 +21,10 @@ class LLMJudge():
             parsed_data = json.loads(clean_response)  
             return parsed_data
         except json.JSONDecodeError as e:
-            print(f"json ayrıstırma hatası: {e}")
+            self.logger.warning("Judge JSON parse hatası: %s", e)
             return None
         except Exception as e:
-            print(f"beklenmeyen hata {e}")
+            self.logger.warning("Judge beklenmeyen hata: %s", e)
             return None
  
     def _clean_json(self,text):
