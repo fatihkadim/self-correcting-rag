@@ -1,23 +1,29 @@
+import sys
+import os
 from pathlib import Path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 from app.retrieval.chunking import TextChunker
 from app.retrieval.embedder import Embedder
 from app.core.config import settings
+from pypdf import PdfReader
 
 COLLECTION_NAME = "SCR2"
 client = QdrantClient(url=settings.qdrant_url)
 
 RAW_DIR = Path("data/raw")
 txt_files = list(RAW_DIR.glob("*.txt"))
+pdf_files = list(RAW_DIR.glob("*.pdf"))
+all_files = txt_files + pdf_files
 
 embedder = Embedder()
 chunker = TextChunker(chunk_size=500, chunk_overlap=50)
 
 
 def ingest_documents():
-    if not txt_files:
-        print("data/raw/ içinde .txt dosyası bulunamadı!")
+    if not all_files:
+        print("data/raw/ içinde .txt veya .pdf dosyası bulunamadı!")
         return
 
     if not client.collection_exists(COLLECTION_NAME):
@@ -27,10 +33,32 @@ def ingest_documents():
         )
 
     all_chunks = []
-    for doc in txt_files:
-        raw_text = doc.read_text(encoding="utf-8")
+    for doc in all_files:
+        print(f"İşleniyor: {doc.name}")
+        raw_text = ""
+        
+        if doc.suffix.lower() == '.txt':
+            raw_text = doc.read_text(encoding="utf-8", errors="ignore")
+        elif doc.suffix.lower() == '.pdf':
+            try:
+                reader = PdfReader(str(doc))
+                for page in reader.pages:
+                    text = page.extract_text()
+                    if text:
+                        raw_text += text + "\n"
+            except Exception as e:
+                print(f"PDF okuma hatası {doc.name}: {e}")
+                continue
+
+        if not raw_text.strip():
+            continue
+
         chunks = chunker.split(raw_text, source=doc.name)
         all_chunks.extend(chunks)
+
+    if not all_chunks:
+        print("Çıkarılabilir metin bulunamadı!")
+        return
 
     texts = [chunk.content for chunk in all_chunks]
     embedded_docs = embedder.embed(texts)
@@ -49,7 +77,7 @@ def ingest_documents():
             for i in range(len(all_chunks))
         ]
     )
-    print(f"{len(all_chunks)} chunk yüklendi.")
+    print(f"{len(all_chunks)} chunk Qdrant'a başarıyla yüklendi.")
 
 
 if __name__ == "__main__":
