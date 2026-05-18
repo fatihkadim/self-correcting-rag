@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 import time
 from app.schemas.query import QueryRequest, QueryResponse
-from app.pipeline import RAGPipeline
+from app.agent.controller import SelfCorrectionController
 
-pipeline = RAGPipeline()
+pipeline = SelfCorrectionController()
 
 app = FastAPI(title="Self Correction RAG")
  

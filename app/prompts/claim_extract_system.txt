@@ -10,3 +10,4 @@ Kurallar:
 4. Bileşik ve uzun cümleleri, doğruluk kontrolü yapılabilecek atomik (tekil) iddialara böl.
 5. Eğer metinde hiçbir doğrulanabilir iddia yoksa, boş bir liste `[]` döndür.
 6. CEVABINI SADECE VE SADECE JSON FORMATINDA VER. Başka hiçbir metin, açıklama veya markdown kodu ekleme.
+7. Metnin orijinal dilini KESİNLİKLE koru. Eğer verilen metin İngilizce ise, çıkardığın iddiaları (claimleri) de MUTLAKA İngilizce yaz. Asla çeviri yapma.

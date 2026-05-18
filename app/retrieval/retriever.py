@@ -24,7 +24,7 @@ class QdrantRetriever:
             threshold = 0.3
         else:
             top_k = 3
-            threshold = 0.7
+            threshold = 0.4
         
         start = time.time()
         encoded_query = self.embedder.embed_single(query)

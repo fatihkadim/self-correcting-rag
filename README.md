@@ -23,46 +23,7 @@ Bu proje "en hızlı cevap" değil, **kanıtlanabilir ve savunulabilir cevap** �
 
 ## 🏗️ Sistem Mimarisi
 
-```
-User Query
-    │
-    ▼
-┌─────────────────┐
-│   Retrieval     │  ← High-Recall mode (geniş bağlam)
-│   (Qdrant)      │
-└────────┬────────┘
-         │ chunks
-         ▼
-┌─────────────────┐
-│ Answer Generator│  ← LLM (low temperature)
-│   (LLM)         │
-└────────┬────────┘
-         │ answer
-         ▼
-┌─────────────────┐
-│ Claim Extractor │  ← Cevabı doğrulanabilir iddialara böler
-└────────┬────────┘
-         │ claims[]
-         ▼
-┌─────────────────┐
-│ Verification    │  ← Her claim için High-Precision re-retrieval
-│ Engine          │     + LLM Judge → Supported / Refuted / Unknown
-└────────┬────────┘
-         │ verification result
-         ▼
-┌─────────────────────────┐
-│ Self-Correction         │  ← Karar: Accept / Retry / Repair
-│ Controller (Agent Core) │
-└────────┬────────────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Answer Repair   │  ← Sadece doğrulanmış claim'lerden yeni cevap
-└────────┬────────┘
-         │
-         ▼
-    Final Answer
-```
+![Sistem Mimarisi](assets/mimari.png)
 
 ---
 
@@ -269,12 +230,21 @@ Tek başına **doğru veya yanlış** olarak değerlendirilebilen minimum bilgi 
 
 ---
 
-## 📊 Değerlendirme Metrikleri
+## 📊 Değerlendirme Metrikleri & Karşılaştırma (Evaluation)
 
-- **Claim doğruluk oranı** — Kaç claim doğrulandı?
+Self-Correcting RAG'in değerini kanıtlamak için klasik RAG ile karşılaştırmalı testler yapabilirsiniz. 
+
+Test scripti, Klasik RAG'in uydurma (hallucination) eğilimi ile bizim sistemimizin nasıl kendi kendini düzelttiğini raporlar:
+
+```bash
+# Değerlendirme scriptini çalıştırın:
+python -m app.evaluation.baseline
+```
+
+Script çalıştığında aşağıdaki özel metrikleri iki sistem için karşılaştırmalı olarak sunar:
+- **Claim doğruluk oranı** — Kaç claim doğrulandı? (Klasik RAG vs Self-Correcting)
 - **Hallucination azalma oranı** — Klasik RAG'a göre ne kadar az hata?
 - **Retry sayısı** — Self-correction kaç kez devreye girdi?
-- **Token maliyeti** — Ek doğrulama adımlarının maliyeti
 
 ---
 

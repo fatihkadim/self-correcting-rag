@@ -1,8 +1,6 @@
 # Personal docs (sprint notes)
 docs/
 
-#assets
-assets/
 
 # Python
 __pycache__/
