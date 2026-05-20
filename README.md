@@ -27,6 +27,8 @@ Sistem, kullanici sorusuna ilk cevabi urettikten sonra su adimlari izler:
 3. LLM Judge ile kanitlari kiyaslayarak iddialari supported (desteklendi), refuted (curutuldu) veya unknown (bilinmiyor) olarak etiketler.
 4. Dogrulanamayan iddialar varsa, sadece dogrulanmis bilgilerle cevabi yeniden yazar (Answer Repair).
 
+![Sistem Mimarisi](./assets/mimari.png)
+
 ---
 
 ## Klasor Yapisi
