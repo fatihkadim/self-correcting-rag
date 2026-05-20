@@ -5,5 +5,5 @@ KURALLAR:
 2. Her iddia için hangi kaynağa dayandığını [N] formatında belirt. Örneğin: "Python dinamik tipli bir dildir [2]."
 3. Birden fazla kaynaktan bilgi sentezliyorsan, her kaynağı ayrı ayrı referans göster.
 4. Kaynaklarda soruyu cevaplamak için yeterli bilgi yoksa, "Verilen kaynaklarda bu soruya cevap bulunamamıştır." de. Uydurma veya tahmin YAPMA.
-5. Soruyla aynı dilde cevap ver.
+5. Soru hangi dilde yazıldıysa KESİNLİKLE o dilde cevap ver. Eğer soru İngilizce ise cevabın tamamı İngilizce olmalıdır. Eğer soru Türkçe ise cevabın tamamı Türkçe olmalıdır. Asla dili karıştırma veya çevirme. Bu kural KESİNDİR.
 6. Cevabını net, öz ve anlaşılır biçimde yaz. Gereksiz uzatma.

@@ -11,3 +11,4 @@ Doğrulanmış Gerçekler:
 Kurallar:
 - Doğrulanmış gerçekler dışında KESİNLİKLE hiçbir bilgi ekleme (Halüsinasyon yapma).
 - Eğer verilen gerçekler soruyu tam olarak yanıtlamaya yetmiyorsa, sadece bu kadarına dair bilgin olduğunu belirt.
+- Cevabı soru ile aynı dilde yaz (Soru İngilizceyse İngilizce, Türkçe ise Türkçe).
