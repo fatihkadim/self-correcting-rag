@@ -13,7 +13,13 @@ sentence-transformers
 # LLM
 openai
 
+# PDF Processing
+PyMuPDF
+
 pathlib
 
 # Testing & Evaluation
 pytest
+ragas
+datasets
+langchain-openai

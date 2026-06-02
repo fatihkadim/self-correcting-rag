@@ -7,22 +7,25 @@ from qdrant_client.models import Distance, VectorParams, PointStruct
 from app.retrieval.chunking import TextChunker
 from app.retrieval.embedder import Embedder
 from app.core.config import settings
-from pypdf import PdfReader
+import fitz
+import uuid
 
 COLLECTION_NAME = "SCR2"
 client = QdrantClient(url=settings.qdrant_url)
 
 RAW_DIR = Path("data/raw")
-txt_files = list(RAW_DIR.glob("*.txt"))
-pdf_files = list(RAW_DIR.glob("*.pdf"))
-all_files = txt_files + pdf_files
 
 embedder = Embedder()
-chunker = TextChunker(chunk_size=500, chunk_overlap=50)
+chunker = TextChunker(chunk_size=1500, chunk_overlap=200)
 
 
-def ingest_documents():
-    if not all_files:
+def ingest_documents(target_files=None):
+    if target_files is None:
+        txt_files = list(RAW_DIR.glob("*.txt"))
+        pdf_files = list(RAW_DIR.glob("*.pdf"))
+        target_files = txt_files + pdf_files
+
+    if not target_files:
         print("data/raw/ içinde .txt veya .pdf dosyası bulunamadı!")
         return
 
@@ -33,7 +36,7 @@ def ingest_documents():
         )
 
     all_chunks = []
-    for doc in all_files:
+    for doc in target_files:
         print(f"İşleniyor: {doc.name}")
         raw_text = ""
         
@@ -41,11 +44,12 @@ def ingest_documents():
             raw_text = doc.read_text(encoding="utf-8", errors="ignore")
         elif doc.suffix.lower() == '.pdf':
             try:
-                reader = PdfReader(str(doc))
-                for page in reader.pages:
-                    text = page.extract_text()
+                doc_pdf = fitz.open(str(doc))
+                for page in doc_pdf:
+                    text = page.get_text()
                     if text:
                         raw_text += text + "\n"
+                doc_pdf.close()
             except Exception as e:
                 print(f"PDF okuma hatası {doc.name}: {e}")
                 continue
@@ -67,7 +71,7 @@ def ingest_documents():
         collection_name=COLLECTION_NAME,
         points=[
             PointStruct(
-                id=i,
+                id=uuid.uuid4().hex,
                 payload={
                     "content": all_chunks[i].content,
                     "source": all_chunks[i].source

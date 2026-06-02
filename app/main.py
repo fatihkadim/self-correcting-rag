@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import time
@@ -34,6 +34,41 @@ def check_health():
 @app.post("/query",response_model=QueryResponse)
 def query(req: QueryRequest):
     return pipeline.run(request=req)
+
+@app.post("/upload")
+async def upload_document(file: UploadFile = File(...)):
+    if not file.filename.lower().endswith('.pdf'):
+        return {"error": "Sadece PDF dosyaları desteklenmektedir."}
+    
+    raw_dir = os.path.join(project_root, "data", "raw")
+    os.makedirs(raw_dir, exist_ok=True)
+    file_path = os.path.join(raw_dir, file.filename)
+    
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    
+    # Run ingestion
+    from scripts.ingest import ingest_documents
+    from pathlib import Path
+    try:
+        ingest_documents([Path(file_path)])
+        return {"status": "success", "message": f"{file.filename} başarıyla yüklendi ve işlendi."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/files")
+def get_files():
+    raw_dir = os.path.join(project_root, "data", "raw")
+    if not os.path.exists(raw_dir):
+        return {"files": []}
+    
+    files = []
+    for f in os.listdir(raw_dir):
+        if f.lower().endswith('.pdf') or f.lower().endswith('.txt'):
+            files.append(f)
+    return {"files": sorted(files)}
+
 
 
 

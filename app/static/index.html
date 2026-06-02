@@ -806,6 +806,23 @@
             -webkit-box-orient: vertical;
         }
 
+        .file-list-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--color-text-main);
+        }
+        .file-list-item svg {
+            width: 14px;
+            height: 14px;
+            color: var(--color-primary);
+        }
+
         /* Responsive Layout */
         @media (max-width: 1100px) {
             main {
@@ -869,6 +886,29 @@
                         <span>Sorgula</span>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                     </button>
+                </div>
+            </div>
+
+            <!-- Document Upload Panel -->
+            <div class="glass-card">
+                <div class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    Belge Yükle
+                </div>
+                <div class="query-form">
+                    <div style="border: 1px dashed var(--card-border); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(255,255,255,0.02);" id="upload-dropzone" onclick="document.getElementById('file-upload').click()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 28px; height: 28px; margin-bottom: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                        <div style="font-size: 13px; color: var(--color-text-muted);" id="upload-text">PDF dosyasını seçmek için tıklayın</div>
+                        <input type="file" id="file-upload" accept=".pdf" style="display: none;" onchange="handleFileSelect(event)">
+                    </div>
+                    <button id="upload-btn" class="btn-submit" onclick="uploadFile()" disabled style="background: linear-gradient(135deg, var(--color-success), #059669);">
+                        <span>Yükle ve İşle</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    </button>
+                    <div id="upload-status" style="font-size: 12px; text-align: center; margin-top: 4px; display: none; padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.2);"></div>
+                    <div id="uploaded-files-list" style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 150px; overflow-y: auto;">
+                        <!-- File items will be injected here -->
+                    </div>
                 </div>
             </div>
 
@@ -1025,6 +1065,109 @@
     </main>
 
     <script>
+        let selectedFile = null;
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            const dropzone = document.getElementById('upload-dropzone');
+            const uploadText = document.getElementById('upload-text');
+            const uploadBtn = document.getElementById('upload-btn');
+            
+            if (file && file.name.toLowerCase().endsWith('.pdf')) {
+                selectedFile = file;
+                uploadText.textContent = file.name;
+                uploadText.style.color = "var(--color-text-main)";
+                dropzone.style.borderColor = "var(--color-success)";
+                dropzone.style.background = "var(--color-success-bg)";
+                uploadBtn.disabled = false;
+            } else {
+                selectedFile = null;
+                uploadText.textContent = "Geçersiz dosya. Lütfen PDF seçin.";
+                uploadText.style.color = "var(--color-error)";
+                dropzone.style.borderColor = "var(--color-error)";
+                dropzone.style.background = "var(--color-error-bg)";
+                uploadBtn.disabled = true;
+            }
+        }
+
+        async function uploadFile() {
+            if (!selectedFile) return;
+
+            const uploadBtn = document.getElementById('upload-btn');
+            const statusDiv = document.getElementById('upload-status');
+            
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = `<span>Yükleniyor...</span>`;
+            statusDiv.style.display = 'block';
+            statusDiv.style.color = 'var(--color-warning)';
+            statusDiv.textContent = 'Dosya sunucuya yükleniyor ve işleniyor (Qdrant)...';
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    statusDiv.style.color = 'var(--color-success)';
+                    statusDiv.textContent = 'Başarılı: ' + result.message;
+                    
+                    // Reset upload area after 3 seconds
+                    setTimeout(() => {
+                        document.getElementById('file-upload').value = '';
+                        selectedFile = null;
+                        document.getElementById('upload-text').textContent = "PDF dosyasını seçmek için tıklayın";
+                        document.getElementById('upload-text').style.color = "var(--color-text-muted)";
+                        const dropzone = document.getElementById('upload-dropzone');
+                        dropzone.style.borderColor = "var(--card-border)";
+                        dropzone.style.background = "rgba(255,255,255,0.02)";
+                        statusDiv.style.display = 'none';
+                        fetchUploadedFiles();
+                    }, 3000);
+                } else {
+                    throw new Error(result.error || result.message || 'Bilinmeyen bir hata oluştu');
+                }
+            } catch (err) {
+                statusDiv.style.color = 'var(--color-error)';
+                statusDiv.textContent = 'Hata: ' + err.message;
+            } finally {
+                uploadBtn.innerHTML = `<span>Yükle ve İşle</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>`;
+                if (selectedFile) uploadBtn.disabled = false;
+            }
+        }
+        async function fetchUploadedFiles() {
+            try {
+                const res = await fetch('/files');
+                const data = await res.json();
+                const listContainer = document.getElementById('uploaded-files-list');
+                if (!listContainer) return;
+                
+                listContainer.innerHTML = '';
+                
+                if (data.files && data.files.length > 0) {
+                    data.files.forEach(file => {
+                        const item = document.createElement('div');
+                        item.className = 'file-list-item';
+                        item.innerHTML = `
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            ${file}
+                        `;
+                        listContainer.appendChild(item);
+                    });
+                } else {
+                    listContainer.innerHTML = '<div style="font-size: 11px; color: var(--color-text-muted); text-align: center;">Henüz yüklü dosya yok.</div>';
+                }
+            } catch (err) {
+                console.error("Dosya listesi alınamadı:", err);
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', fetchUploadedFiles);
+
         function useExample(text) {
             document.getElementById('query-input').value = text;
         }

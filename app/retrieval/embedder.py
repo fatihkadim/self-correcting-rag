@@ -5,7 +5,7 @@ class Embedder:
         self.model = SentenceTransformer(model_name)
     
     def embed(self, texts: list[str]) -> list[list[float]]:
-        return self.model.encode(texts).tolist()
+        return self.model.encode(texts, batch_size=4).tolist()
     
     def embed_single(self, text: str) -> list[float]:
         return self.model.encode(text).tolist()

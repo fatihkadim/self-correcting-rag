@@ -1,2 +1,2 @@
-# Exclude static web interface from GitHub language statistics
-app/static/index.html linguist-detectable=false
+# Treat the static directory as vendored to exclude it from language statistics
+app/static/* linguist-vendored
