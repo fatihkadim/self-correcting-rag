@@ -9,6 +9,7 @@ from app.agent.policies import PolicyEngine
 from app.core.config import settings
 from app.schemas.query import QueryRequest, QueryResponse
 from app.agent.policies import PolicyEngine, Decisions
+from app.retrieval.query_rewriter import QueryRewriter
 
 logger = get_logger(__name__)
 
@@ -20,16 +21,20 @@ class SelfCorrectionController():
         self.verifier = VerificationEngine(retriever=self.retriever)
         self.answer_repair = AnswerRepair(llm_client=LLMClient())
         self.decider = PolicyEngine()
+        self.query_rewriter = QueryRewriter(llm_client=LLMClient())
 
     def run(self,request:QueryRequest) -> QueryResponse:
         attempt= 0
+        current_question = request.question
         while attempt < settings.max_retry:
-            retrieval_result = self.retriever.search(request.question)
+            retrieval_result = self.retriever.search(current_question)
             answer = self.answer_generator.generate(request.question, retrieval_result)
 
             claims_result = self.claim_extractor.extract(answer)
             claims_list = [c.model_dump() for c in claims_result.claims] if claims_result else []
-            verification_result = self.verifier.verify_claims(claims_result.claims) if claims_result else None
+            # Orijinal context'leri verification'a geçir (Problem 1)
+            original_contexts = [chunk.content for chunk in retrieval_result.chunks]
+            verification_result = self.verifier.verify_claims(claims_result.claims, original_contexts) if claims_result else None
 
             if verification_result is None:
                 return QueryResponse(answer=answer,
@@ -46,7 +51,11 @@ class SelfCorrectionController():
                                     verification=verification_result.model_dump() if verification_result else None,
                                     )
             elif decision == Decisions.REPAIR:
-                repaired_answer = self.answer_repair.repair(request.question,verification_result)
+                repaired_answer = self.answer_repair.repair(
+                    request.question, verification_result,
+                    original_answer=answer,
+                    original_contexts=original_contexts
+                )
                 return QueryResponse(answer=repaired_answer,
                                     sources=[chunk.model_dump() for chunk in retrieval_result.chunks],
                                     claims=claims_list,
@@ -54,6 +63,8 @@ class SelfCorrectionController():
                                     )
             elif decision == Decisions.RETRY:
                 logger.info("Cevap yanlislandi, tekrar deneniyor...")
+                # Soruyu reformüle et (Problem 2)
+                current_question = self.query_rewriter.rewrite(request.question, attempt)
 
             attempt += 1
         return QueryResponse(answer=answer,

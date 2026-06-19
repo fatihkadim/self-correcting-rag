@@ -1,83 +1,86 @@
 # Self-Correcting RAG
 
-> **Kanitlanabilir ve savunulabilir cevaplar ureten, kendi kendini duzelten bir RAG sistemi.**
+> **Kanıtlanabilir ve savunulabilir cevaplar üreten, kendi kendini düzelten bir RAG sistemi.**
 
-Klasik RAG sistemleri cevap uretir ama dogrulamaz. Bu proje urettigi her cevabi **iddialara (claims) boler**, her iddiayi **kanitlarla dogrular** ve gerektiginde **kendi kendini duzeltir**.
+Klasik RAG sistemleri cevap üretir ama doğrulamaz. Bu proje ürettiği her cevabı **iddialara (claims) böler**, her iddiayı **kanıtlarla doğrular** ve gerektiğinde **kendi kendini düzeltir**.
 
 ---
 
 ## Proje Felsefesi
 
-Bu proje "en hizli cevap" degil, **kanitlanabilir ve savunulabilir cevap** uretmeyi hedefler.
+Bu proje "en hızlı cevap" değil, **kanıtlanabilir ve savunulabilir cevap** üretmeyi hedefler.
 
 | Klasik RAG | Self-Correcting RAG |
 |---|---|
-| Cevap uretir ve sunar | Cevap uretir, iddialara boler, dogrular |
-| LLM'e guvenir | LLM'i sorgular |
-| Hallucination kontrolu yok | Claim-level hallucination tespiti |
-| Tek gecis (one-shot) | Iteratif, geri beslemeli dongu |
+| Cevap üretir ve sunar | Cevap üretir, iddialara böler, doğrular |
+| LLM'e güvenir | LLM'i sorgular |
+| Hallucination kontrolü yok | Claim-level hallucination tespiti |
+| Tek geçiş (one-shot) | İteratif, geri beslemeli döngü |
 
 ---
 
 ## Sistem Mimarisi
 
-Sistem, kullanici sorusuna ilk cevabi urettikten sonra su adimlari izler:
-1. Cevap icindeki her bir bagimsiz bilgi ifadesini (claim) cikarir.
-2. Her bir iddia icin ayri ayri ve yuksek kesinlikli (High-Precision) veri aramasi yapar (Evidence Check).
-3. LLM Judge ile kanitlari kiyaslayarak iddialari supported (desteklendi), refuted (curutuldu) veya unknown (bilinmiyor) olarak etiketler.
-4. Dogrulanamayan iddialar varsa, sadece dogrulanmis bilgilerle cevabi yeniden yazar (Answer Repair).
+Sistem, kullanıcı sorusuna ilk cevabı ürettikten sonra şu adımları izler:
+1. Cevap içindeki her bir bağımsız bilgi ifadesini (claim) çıkarır.
+2. Her bir iddia için ayrı ayrı ve yüksek kesinlikli (High-Precision) veri araması yapar (Evidence Check).
+3. LLM Judge ile kanıtları kıyaslayarak iddiaları supported (desteklendi), refuted (çürütüldü) veya unknown (bilinmiyor) olarak etiketler.
+4. Doğrulanamayan iddialar varsa, sadece doğrulanmış bilgilerle cevabı yeniden yazar (Answer Repair).
+5. Tüm claimler desteklenemezse, soruyu reformüle edip tekrar dener (Query Rewrite + Retry).
 
 ![Sistem Mimarisi](./assets/mimari.png)
 
 ---
 
-## Klasor Yapisi
+## Klasör Yapısı
 
 ```
 self-correcting-rag/
 │
 ├── app/
 │   ├── main.py                 # FastAPI entrypoint (Web UI ve API sunumu)
-│   ├── pipeline.py             # Ana RAG pipeline sinifi
-│   │
-│   ├── api/
-│   │   └── routes.py           # /query endpoint
+│   ├── pipeline.py             # Basit RAG pipeline (verification dahil, retry hariç)
 │   │
 │   ├── static/
-│   │   └── index.html          # Web Arayuzu (Glassmorphism Ajan Arayuzu)
+│   │   └── index.html          # Web Arayüzü (Glassmorphism Ajan Arayüzü)
 │   │
 │   ├── core/
-│   │   ├── config.py           # Env & model ayarlari (pydantic-settings)
-│   │   ├── logger.py           # Merkezi logging altyapisi
-│   │   └── settings.py
+│   │   ├── config.py           # Env & model ayarları (pydantic-settings)
+│   │   └── logger.py           # Merkezi logging altyapısı
 │   │
 │   ├── retrieval/
 │   │   ├── retriever.py        # QdrantRetriever (High-Recall / High-Precision)
 │   │   ├── chunking.py         # Recursive semantic chunking + overlap
 │   │   ├── embedder.py         # Sentence Transformers embedding
-│   │   └── query_rewrite.py    # Retry icin sorgu reformulasyonu
+│   │   └── query_rewriter.py   # LLM ile sorgu reformülasyonu (Retry için)
 │   │
 │   ├── generation/
-│   │   ├── answer.py           # Ilk cevap uretim modulu
-│   │   └── repair.py           # Dogrulanmis claim'lerden cevap yeniden yazimi
+│   │   ├── llm.py              # OpenAI API istemcisi (LLMClient)
+│   │   ├── answer.py           # İlk cevap üretim modülü
+│   │   └── repair.py           # Doğrulanmış claim'lerden cevap yeniden yazımı
 │   │
 │   ├── claims/
-│   │   ├── extractor.py        # LLM tabanli claim extraction
-│   │   └── models.py           # Claim Pydantic modelleri
+│   │   └── extractor.py        # LLM tabanlı claim extraction
 │   │
 │   ├── verification/
 │   │   ├── verifier.py         # Claim verification engine
-│   │   └── judge.py            # LLM Judge / NLI degerlendirme
+│   │   └── judge.py            # LLM Judge / NLI değerlendirme
 │   │
 │   ├── agent/
-│   │   ├── controller.py       # Self-correction karar mantigi (agentic core)
-│   │   └── policies.py         # Retry / stop politikalari
+│   │   ├── controller.py       # Self-correction karar mantığı (agentic core)
+│   │   └── policies.py         # Accept / Repair / Retry politikaları
 │   │
 │   ├── prompts/
-│   │   ├── answer.txt          # Cevap uretim prompt'u
-│   │   ├── claim_extract.txt   # Claim extraction prompt'u
-│   │   ├── verify.txt          # Dogrulama prompt'u
-│   │   └── repair.txt          # Cevap duzeltme prompt'u
+│   │   ├── answer_system.txt       # Cevap üretim sistem prompt'u
+│   │   ├── answer_user.txt         # Cevap üretim kullanıcı prompt'u
+│   │   ├── claim_extract.txt       # Claim extraction prompt'u
+│   │   ├── claim_extract_system.txt# Claim extraction sistem prompt'u
+│   │   ├── verify_user.txt         # Doğrulama prompt'u
+│   │   ├── verify_system.txt       # Doğrulama sistem prompt'u
+│   │   ├── repair.txt              # Cevap düzeltme prompt'u
+│   │   ├── repair_system.txt       # Cevap düzeltme sistem prompt'u
+│   │   ├── query_rewrite.txt       # Sorgu reformülasyon prompt'u
+│   │   └── query_rewrite_system.txt# Sorgu reformülasyon sistem prompt'u
 │   │
 │   ├── schemas/
 │   │   ├── query.py            # QueryRequest / QueryResponse
@@ -86,32 +89,28 @@ self-correcting-rag/
 │   │   └── verification.py     # ClaimVerification / VerificationStatus
 │   │
 │   └── evaluation/
-│       ├── metrics.py          # Ozel metrikler (hallucination rate, retry count)
-│       └── baseline.py         # Klasik RAG karsilastirmasi
+│       └── ragas_eval.py       # RAGAS metriklerle karşılaştırmalı değerlendirme
 │
 ├── data/
-│   ├── raw/                    # Kaynak dokumanlar (PDF ve TXT)
-│   ├── processed/              # Chunk'lanmis veriler
-│   └── eval/                   # Test sorulari & ground truth
+│   ├── raw/                    # Kaynak dokümanlar (PDF ve TXT)
+│   └── eval/                   # Test soruları, ground truth & RAGAS raporları
 │
 ├── scripts/
-│   ├── ingest.py               # Dokuman yukleme & indexleme
+│   ├── ingest.py               # Doküman yükleme & indexleme
 │   └── reindex.py              # Vector DB yeniden indexleme
 │
 ├── tests/
-│   ├── test_claims.py
-│   ├── test_verification.py
-│   └── test_agent.py
+│   └── test_verification.py    # Verification engine testleri
 │
 ├── docker/
 │   ├── Dockerfile
 │   └── docker-compose.yml
 │
 ├── docs/
-│   ├── projeaciklamasi.md      # Detayli proje aciklamasi
-│   └── sprint_plan.md          # 15 sprint'lik ogrenim plani
+│   ├── projeaciklamasi.md      # Detaylı proje açıklaması
+│   └── sprint_plan.md          # Sprint bazlı öğrenim planı
 │
-├── .env                        # Ortam degiskenleri
+├── .env                        # Ortam değişkenleri
 ├── pyproject.toml
 └── requirements.txt
 ```
@@ -131,7 +130,7 @@ git clone https://github.com/fatihkadim/self-correcting-rag.git
 cd self-correcting-rag
 ```
 
-### 2. Sanal Ortam ve Bagimliliklar
+### 2. Sanal Ortam ve Bağımlılıklar
 
 ```bash
 python -m venv .venv
@@ -141,9 +140,9 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 3. Ortam Degiskenlerini Ayarla
+### 3. Ortam Değişkenlerini Ayarla
 
-`.env` dosyasi olustur:
+`.env` dosyası oluştur:
 
 ```env
 MODEL_NAME=gpt-4o-mini
@@ -155,21 +154,21 @@ OPENAI_API_KEY=sk-...
 QDRANT_URL=http://localhost:6333
 ```
 
-### 4. Qdrant'i Baslat (Docker)
+### 4. Qdrant'ı Başlat (Docker)
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d
 ```
 
-### 5. Dokumanlari Indexle
+### 5. Dokümanları İndexle
 
-`data/raw` altina PDF veya TXT test dosyalarinizi ekledikten sonra:
+`data/raw` altına PDF veya TXT dosyalarınızı ekledikten sonra:
 
 ```bash
 python scripts/ingest.py
 ```
 
-### 6. Uygulamayi Calistir
+### 6. Uygulamayı Çalıştır
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -177,100 +176,103 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ---
 
-## Kullanim
+## Kullanım
 
-### Web Arayuzu (Tavsiye Edilen)
-Uygulama calisirken tarayicinizdan su adrese giderek premium Glassmorphism arayuzunu kullanabilirsiniz:
+### Web Arayüzü (Tavsiye Edilen)
+Uygulama çalışırken tarayıcınızdan şu adrese giderek Glassmorphism arayüzünü kullanabilirsiniz:
 http://localhost:8000/
 
-Arayuz uzerinden sorgularinizi gonderebilir, veri arama, iddia cikarimi, kanit kontrolu ve cevap onarma adimlarini canli izleyebilir ve onarilan cevaplari karsilastirabilirsiniz.
+Arayüz üzerinden sorgularınızı gönderebilir, veri arama, iddia çıkarımı, kanıt kontrolü ve cevap onarma adımlarını canlı izleyebilir ve onarılan cevapları karşılaştırabilirsiniz.
 
-### API Saglik Kontrolu
+### API Sağlık Kontrolü
 
 ```bash
 curl http://localhost:8000/health
 ```
 
-### API Sorgu Gonder
+### API Sorgu Gönder
 
 ```bash
 curl -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
-  -d '{"question": "Python ne zaman gelistirildi?"}'
+  -d '{"question": "What is the Transformer architecture?"}'
 ```
 
-### Interaktif API Dokumantasyonu (Swagger UI)
+### Doküman Yükleme (API)
 
-Uygulama calisirken tarayicida acin: http://localhost:8000/docs
+```bash
+curl -X POST http://localhost:8000/upload -F "file=@document.pdf"
+```
+
+### İnteraktif API Dokümantasyonu (Swagger UI)
+
+Uygulama çalışırken tarayıcıda açın: http://localhost:8000/docs
 
 ---
 
 ## Temel Kavramlar
 
 ### Claim Nedir?
-Tek basina **dogru veya yanlis** olarak degerlendirilebilen minimum bilgi birimi.
+Tek başına **doğru veya yanlış** olarak değerlendirilebilen minimum bilgi birimi.
 
-| Gecerli Claim | Gecerli Olmayan Claim |
+| Geçerli Claim | Geçerli Olmayan Claim |
 |---|---|
-| "Python 1991'de gelistirildi." | "Python guzel bir dildir." |
-| "FastAPI async destekler." | "Bu framework kullanislidir." |
+| "Python 1991'de geliştirildi." | "Python güzel bir dildir." |
+| "FastAPI async destekler." | "Bu framework kullanışlıdır." |
 
-### Verification Statuleri
-| Statu | Anlam |
+### Verification Statüleri
+| Statü | Anlam |
 |---|---|
-| supported | Kanit bulundu ve dogrulandi |
-| refuted | Kanit bulundu ve curutuldu |
-| unknown | Yeterli kanit bulunamadi |
+| supported | Kanıt bulundu ve doğrulandı |
+| refuted | Kanıt bulundu ve çürütüldü |
+| unknown | Yeterli kanıt bulunamadı |
 
-### Retrieval Modlari
-| Mod | Kullanim | top_k | Threshold |
+### Policy Kararları
+| Karar | Koşul | Eylem |
+|---|---|---|
+| ACCEPT | Tüm claimler supported | Cevap olduğu gibi döner |
+| REPAIR | Bazı claimler supported | Sadece doğrulanmış claimlerle yeniden yazar |
+| RETRY | Hiçbir claim supported değil | Soruyu reformüle edip tekrar dener |
+
+### Retrieval Modları
+| Mod | Kullanım | top_k | Threshold |
 |---|---|---|---|
-| HIGH_RECALL | Ilk cevap uretimi | 10 | 0.3 |
-| HIGH_PRECISION | Claim dogrulama | 3 | 0.4 |
+| HIGH_RECALL | İlk cevap üretimi | 10 | 0.3 |
+| HIGH_PRECISION | Claim doğrulama | 3 | 0.4 |
 
 ---
 
-## Degerlendirme Metrikleri & Karsilastirma (Evaluation)
+## Değerlendirme (RAGAS Evaluation)
 
-Self-Correcting RAG'in degerini kanitlamak icin klasik RAG ile karsilastirmali testler yapabilirsiniz. 
+Self-Correcting RAG'in değerini kanıtlamak için klasik RAG ile karşılaştırmalı testler yapabilirsiniz.
 
 ```bash
-python -m app.evaluation.baseline
+python -m app.evaluation.ragas_eval
 ```
 
-Script calistiginda asagidaki metrikleri karsilastirmali olarak sunar:
-- Claim dogruluk orani (Supported)
-- Uydurma orani (Refuted)
-- Bilinmeyen orani (Unknown)
-- Islenen toplam sorgu ve iddia sayisi
+### Metrikler
+| Metrik | Açıklama |
+|---|---|
+| **Faithfulness** | Cevap, getirilen context'e sadık mı? |
+| **Answer Relevancy** | Cevap soruya uygun mu? |
+| **Context Precision** | İlgili dokümanlar üst sıralarda mı? |
+| **Context Recall** | Context, ground truth'u kapsıyor mu? |
+
+Sonuçlar `data/eval/ragas_report_*.json` dosyasına kaydedilir.
 
 ---
 
-## Sprint Plani (15 Sprint · ~45 Saat)
-
-| Grup | Sprintler | Konu |
-|---|---|---|
-| Temel | 1-4 | Kurulum, Config, Mock Retrieval, Pipeline |
-| Retrieval | 5-7 | Qdrant, Chunking, Gercek Retrieval |
-| Generation | 8-9 | LLM Entegrasyonu, Prompt Engineering |
-| Claims | 10-11 | Claim Extraction, Schema |
-| Verification | 12-13 | Verification Engine, Answer Repair |
-| Final | 14-15 | Self-Correction Controller, Evaluation |
-
-Detaylar icin -> docs/sprint_plan.md
-
----
-
-## Teknoloji Yigini
+## Teknoloji Yığını
 
 | Katman | Teknoloji |
 |---|---|
 | Web Framework | FastAPI + Uvicorn |
-| Veri Dogrulama | Pydantic v2 |
+| Veri Doğrulama | Pydantic v2 |
 | Vector DB | Qdrant |
 | Embedding | Sentence Transformers (all-MiniLM-L6-v2) |
 | LLM | OpenAI API (gpt-4o-mini) |
 | Konteyner | Docker + Docker Compose |
+| Değerlendirme | RAGAS + LangChain |
 
 ---
 

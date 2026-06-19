@@ -1,0 +1,8 @@
+Aşağıdaki soruyu farklı kelimeler kullanarak yeniden yaz. Anlamını değiştirme, ama farklı terimler ve bakış açısı kullan.
+Önceki denemelerde bu soruyla yeterli bilgi bulunamadı, bu yüzden farklı anahtar kelimeler kullanmak önemli.
+
+Deneme numarası: {attempt} (her denemede farklı bir yaklaşım dene)
+
+Orijinal soru: {question}
+
+Yeniden yazılmış soru:

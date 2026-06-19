@@ -23,14 +23,20 @@ class RAGPipeline:
         answer = self.answer_generator.generate(request.question, retrieval_result)
         claims_result = self.claim_extractor.extract(answer)
         claims_list = [c.model_dump() for c in claims_result.claims] if claims_result else []
-        verification_result = self.verifier.verify_claims(claims_result.claims) if claims_result else None
+        original_contexts = [chunk.content for chunk in retrieval_result.chunks]
+        verification_result = self.verifier.verify_claims(claims_result.claims, original_contexts) if claims_result else None
         
         final_answer = answer 
         
         if verification_result is not None:
             if verification_result.supported_counts < verification_result.total_claims:
                 logger.info("Bazı iddialar doğrulanamadı. Cevap onarılıyor (Answer Repair)...")
-                final_answer = self.answer_repair.repair(question=request.question, verification_result=verification_result)
+                final_answer = self.answer_repair.repair(
+                    question=request.question, 
+                    verification_result=verification_result,
+                    original_answer=answer,
+                    original_contexts=original_contexts
+                )
             else:
                 logger.info("Tüm iddialar doğrulandı. Onarıma (Repair) gerek yok.")
         else:

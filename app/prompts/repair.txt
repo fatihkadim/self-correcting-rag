@@ -5,10 +5,17 @@ Lütfen bu doğrulanmış iddiaları kullanarak orijinal soruya tutarlı, akıc�
 
 Soru: {question}
 
+Orijinal Cevap (bazı hatalar içeriyor):
+{original_answer}
+
 Doğrulanmış Gerçekler:
 {verified_claims}
 
+Destekleyici Kanıtlar:
+{supporting_evidence}
+
 Kurallar:
 - Doğrulanmış gerçekler dışında KESİNLİKLE hiçbir bilgi ekleme (Halüsinasyon yapma).
+- Destekleyici kanıtları kullanarak cevabı zenginleştir ve detaylandır.
 - Eğer verilen gerçekler soruyu tam olarak yanıtlamaya yetmiyorsa, sadece bu kadarına dair bilgin olduğunu belirt.
 - Cevabı soru ile aynı dilde yaz (Soru İngilizceyse İngilizce, Türkçe ise Türkçe).

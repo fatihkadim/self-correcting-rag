@@ -21,12 +21,17 @@ class VerificationEngine:
         self.judge = judge or LLMJudge(llm_client or LLMClient())
         self.logger = get_logger(__name__)
 
-    def verify_claims(self, claims: list[Claim]) -> VerificationResult:
+    def verify_claims(self, claims: list[Claim], original_contexts: list[str] | None = None) -> VerificationResult:
         verifications: list[ClaimVerification] = []
 
         for claim in claims:
             retrieval_result = self.retriever.search(claim.claim, mode=RetrievalMode.HIGH_PRECISION)
             evidence = [chunk.content for chunk in retrieval_result.chunks]
+            # Orijinal context'leri de evidence'a ekle (yalnızca mevcut olmayanları)
+            if original_contexts:
+                for ctx in original_contexts:
+                    if ctx not in evidence:
+                        evidence.append(ctx)
             judge_result = self.judge.judge(claim.claim, evidence) or {}
 
             status = str(judge_result.get("status", "unknown")).lower()
