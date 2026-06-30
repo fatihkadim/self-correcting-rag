@@ -1,7 +1,7 @@
-Aşağıdaki iddiayı, verilen kanıtlarla karşılaştırarak değerlendir.
+Evaluate the following claim by comparing it against the provided evidence.
 
-İddia (Claim):
+Claim:
 {claim}
 
-Kanıtlar (Evidence):
+Evidence:
 {evidence}

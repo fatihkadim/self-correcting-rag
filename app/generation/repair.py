@@ -13,8 +13,8 @@ class AnswerRepair:
         supported_claims = [v.claim for v in verification_result.verifications if v.status == VerificationStatus.SUPPORTED]
 
         if not supported_claims:
-            self.logger.warning("Hiç doğrulanmış iddia bulunamadı. Yeni cevap üretilemiyor.")
-            return "Üzgünüm, sorunuzu yanıtlamak için güvenilir bir kanıt bulunamadı."
+            self.logger.warning("No verified claims found. Cannot generate a new answer.")
+            return "Sorry, no reliable evidence was found to answer your question."
 
         # Supported claim'lerin evidence'larını topla
         supporting_evidence = []

@@ -56,6 +56,10 @@ class SelfCorrectionController():
                     original_answer=answer,
                     original_contexts=original_contexts
                 )
+                # Güvenlik kontrolü: repair sonucu orijinalden kötüyse geri al
+                if self._is_degraded(repaired_answer, answer):
+                    logger.warning("Repair cevabı bozdu, orijinal cevap korunuyor.")
+                    repaired_answer = answer
                 return QueryResponse(answer=repaired_answer,
                                     sources=[chunk.model_dump() for chunk in retrieval_result.chunks],
                                     claims=claims_list,
@@ -72,4 +76,33 @@ class SelfCorrectionController():
                                     claims=claims_list,
                                     verification=verification_result.model_dump() if verification_result else None,
                                     )
+
+    def _is_degraded(self, new_answer: str, original_answer: str) -> bool:
+        """Checks whether the answer has degraded after repair."""
+        fallback_phrases = [
+            # Turkish fallbacks
+            "cevap bulunamamıştır",
+            "güvenilir bir kanıt bulunamadı",
+            "cevap bulunamadı",
+            "yeterli bilgi yoktur",
+            # English fallbacks
+            "do not contain an answer",
+            "no reliable evidence was found",
+            "insufficient information",
+            "cannot be answered",
+        ]
+        new_lower = new_answer.lower()
+        orig_lower = original_answer.lower()
+        # Orijinal zaten fallback ise, repair'ı bozmayız
+        orig_is_fallback = any(phrase in orig_lower for phrase in fallback_phrases)
+        if orig_is_fallback:
+            return False
+        # Repair sonucu fallback olduysa → bozulmuş
+        if any(phrase in new_lower for phrase in fallback_phrases):
+            return True
+        # Repair sonucu orijinalden çok kısaysa → bozulmuş
+        if len(new_answer.strip()) < len(original_answer.strip()) * 0.3:
+            return True
+        return False
+
             

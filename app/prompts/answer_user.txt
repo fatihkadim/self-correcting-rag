@@ -1,6 +1,6 @@
-Aşağıdaki kaynaklara dayanarak soruyu cevapla. Her iddia için kaynak numarasını [N] formatında belirt.
+Answer the question based on the sources below. Cite the source number for each claim using the [N] format.
 
-Kaynaklar:
+Sources:
 {context}
 
-Soru: {question}
+Question: {question}

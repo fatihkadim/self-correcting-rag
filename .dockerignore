@@ -1,0 +1,38 @@
+# Virtual environment
+.venv/
+venv/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# IDE
+.idea/
+.vscode/
+.agents/
+
+# Cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.cache/
+
+# Local data
+qdrant_data/
+data/
+
+# Environment (secrets)
+.env
+.env.local
+
+# Docs & assets
+docs/
+assets/
+*.md
+LICENSE
+
+# Docker (prevent recursive copy)
+docker/

@@ -1,10 +1,14 @@
 from enum import Enum
-from app.schemas.verification import VerificationResult
+from app.schemas.verification import VerificationResult, VerificationStatus
 
 class Decisions(str, Enum):
     ACCEPT = "accept"
     REPAIR = "repair"
     RETRY = "retry"
+
+# Eşik değerleri
+CONFIDENCE_THRESHOLD = 0.7
+HIGH_CONF_ACCEPT_RATIO = 0.8
 
 class PolicyEngine():
     def __init__(self):
@@ -16,10 +20,18 @@ class PolicyEngine():
             return Decisions.ACCEPT
         elif result.supported_counts == result.total_claims:
             return Decisions.ACCEPT
-        elif result.supported_counts == 0:
-            return Decisions.RETRY
-        else:
-            return Decisions.REPAIR
         
-        pass
+        # Yüksek güvenle desteklenen claim oranı yüksekse kabul et
+        # (gereksiz repair/retry'ı önler)
+        high_conf_supported = sum(
+            1 for v in result.verifications
+            if v.status == VerificationStatus.SUPPORTED and v.confidence >= CONFIDENCE_THRESHOLD
+        )
+        if high_conf_supported / result.total_claims >= HIGH_CONF_ACCEPT_RATIO:
+            return Decisions.ACCEPT
+        
+        if result.supported_counts == 0:
+            return Decisions.RETRY
+        
+        return Decisions.REPAIR
     

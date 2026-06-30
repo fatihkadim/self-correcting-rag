@@ -1,8 +1,8 @@
-Aşağıdaki soruyu farklı kelimeler kullanarak yeniden yaz. Anlamını değiştirme, ama farklı terimler ve bakış açısı kullan.
-Önceki denemelerde bu soruyla yeterli bilgi bulunamadı, bu yüzden farklı anahtar kelimeler kullanmak önemli.
+Rewrite the following question using different words. Do not change the meaning, but use different terms and perspectives.
+Previous attempts with this question did not retrieve sufficient information, so using different keywords is important.
 
-Deneme numarası: {attempt} (her denemede farklı bir yaklaşım dene)
+Attempt number: {attempt} (try a different approach for each attempt)
 
-Orijinal soru: {question}
+Original question: {question}
 
-Yeniden yazılmış soru:
+Rewritten question:

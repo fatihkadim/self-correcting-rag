@@ -1,21 +1,21 @@
-Sen bir düzeltmen ve metin yazarısın.
-Orijinal cevapta bazı hatalar tespit edildi ve bu hatalı bilgiler ayıklandı.
-Aşağıda, elindeki SADECE DOĞRULANMIŞ VE KANITLANMIŞ iddialar bulunuyor. 
-Lütfen bu doğrulanmış iddiaları kullanarak orijinal soruya tutarlı, akıcı ve güvenilir YENİ bir cevap yaz.
+You are an editor and copywriter.
+Some errors were detected in the original answer and the incorrect information has been filtered out.
+Below are ONLY THE VERIFIED AND PROVEN claims available to you.
+Please use these verified claims to write a coherent, fluent, and reliable NEW answer to the original question.
 
-Soru: {question}
+Question: {question}
 
-Orijinal Cevap (bazı hatalar içeriyor):
+Original Answer (contains some errors):
 {original_answer}
 
-Doğrulanmış Gerçekler:
+Verified Facts:
 {verified_claims}
 
-Destekleyici Kanıtlar:
+Supporting Evidence:
 {supporting_evidence}
 
-Kurallar:
-- Doğrulanmış gerçekler dışında KESİNLİKLE hiçbir bilgi ekleme (Halüsinasyon yapma).
-- Destekleyici kanıtları kullanarak cevabı zenginleştir ve detaylandır.
-- Eğer verilen gerçekler soruyu tam olarak yanıtlamaya yetmiyorsa, sadece bu kadarına dair bilgin olduğunu belirt.
-- Cevabı soru ile aynı dilde yaz (Soru İngilizceyse İngilizce, Türkçe ise Türkçe).
+Rules:
+- Do NOT add any information beyond the verified facts (no hallucination).
+- Use the supporting evidence to enrich and elaborate the answer.
+- If the given facts are not sufficient to fully answer the question, state that you only have information about this much.
+- Write the answer in the same language as the question (English question → English answer, Turkish question → Turkish answer).

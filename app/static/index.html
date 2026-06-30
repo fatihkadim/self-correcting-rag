@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,30 +9,47 @@
     <!-- Google Fonts: Outfit & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- MathJax for LaTeX parsing -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['\\(', '\\)'], ['$', '$']],
+                displayMath: [['\\[', '\\]'], ['$$', '$$']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
     <style>
         :root {
             --bg-color: #080c14;
             --card-bg: rgba(16, 24, 48, 0.45);
             --card-border: rgba(255, 255, 255, 0.08);
             --primary-glow: rgba(99, 102, 241, 0.15);
-            
+
             --color-text-main: #f3f4f6;
             --color-text-muted: #9ca3af;
-            
+
             --color-primary: #6366f1;
             --color-primary-hover: #4f46e5;
             --color-secondary: #a855f7;
-            
+
             --color-success: #10b981;
             --color-success-bg: rgba(16, 185, 129, 0.1);
             --color-success-border: rgba(16, 185, 129, 0.25);
-            
+
             --color-error: #ef4444;
             --color-error-bg: rgba(239, 68, 68, 0.1);
             --color-error-border: rgba(239, 68, 68, 0.25);
-            
+
             --color-warning: #f59e0b;
             --color-warning-bg: rgba(245, 158, 11, 0.1);
             --color-warning-border: rgba(245, 158, 11, 0.25);
@@ -50,13 +68,16 @@
             width: 6px;
             height: 6px;
         }
+
         ::-webkit-scrollbar-track {
             background: transparent;
         }
+
         ::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 10px;
         }
+
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.2);
         }
@@ -67,13 +88,16 @@
             color: var(--color-text-main);
             min-height: 100vh;
             overflow-x: hidden;
-            background-image: 
+            background-image:
                 radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
                 radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.1) 0px, transparent 50%);
             background-attachment: fixed;
         }
 
-        h1, h2, h3, h4 {
+        h1,
+        h2,
+        h3,
+        h4 {
             font-family: 'Outfit', sans-serif;
             font-weight: 600;
         }
@@ -147,9 +171,20 @@
         }
 
         @keyframes pulse {
-            0% { transform: scale(0.9); opacity: 0.6; }
-            50% { transform: scale(1.1); opacity: 1; }
-            100% { transform: scale(0.9); opacity: 0.6; }
+            0% {
+                transform: scale(0.9);
+                opacity: 0.6;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(0.9);
+                opacity: 0.6;
+            }
         }
 
         main {
@@ -454,8 +489,15 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* Metrics grid */
@@ -488,10 +530,21 @@
             font-family: 'Outfit', sans-serif;
         }
 
-        .metric-value.success { color: var(--color-success); }
-        .metric-value.warning { color: var(--color-warning); }
-        .metric-value.error { color: var(--color-error); }
-        .metric-value.primary { color: var(--color-primary); }
+        .metric-value.success {
+            color: var(--color-success);
+        }
+
+        .metric-value.warning {
+            color: var(--color-warning);
+        }
+
+        .metric-value.error {
+            color: var(--color-error);
+        }
+
+        .metric-value.primary {
+            color: var(--color-primary);
+        }
 
         /* Answer panels */
         .answer-container {
@@ -700,8 +753,15 @@
         }
 
         @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .reasoning-box {
@@ -817,6 +877,7 @@
             font-size: 12px;
             color: var(--color-text-main);
         }
+
         .file-list-item svg {
             width: 14px;
             height: 14px;
@@ -829,10 +890,12 @@
                 grid-template-columns: 1fr;
                 height: auto;
             }
+
             .sidebar {
                 height: auto;
                 overflow-y: visible;
             }
+
             .workspace-content {
                 height: auto;
                 overflow-y: visible;
@@ -840,12 +903,14 @@
         }
     </style>
 </head>
+
 <body>
 
     <header>
         <div class="logo-container">
             <div class="logo-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px; transform: rotate(-45deg); transform-origin: center;">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="width: 22px; height: 22px; transform: rotate(-45deg); transform-origin: center;">
                     <defs>
                         <linearGradient id="bow-grad" x1="0%" y1="0%" x2="100%" y2="100%">
                             <stop offset="0%" stop-color="#c084fc" />
@@ -875,16 +940,25 @@
             <!-- Search Panel -->
             <div class="glass-card">
                 <div class="card-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
                     Sorgu Paneli
                 </div>
                 <div class="query-form">
                     <div class="textarea-container">
-                        <textarea id="query-input" placeholder="Örn: How does LoRA reduce trainable parameters during fine-tuning?"></textarea>
+                        <textarea id="query-input"
+                            placeholder="Örn: How does LoRA reduce trainable parameters during fine-tuning?"></textarea>
                     </div>
                     <button id="submit-btn" class="btn-submit" onclick="submitQuery()">
                         <span>Sorgula</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
                     </button>
                 </div>
             </div>
@@ -892,21 +966,45 @@
             <!-- Document Upload Panel -->
             <div class="glass-card">
                 <div class="card-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
                     Belge Yükle
                 </div>
                 <div class="query-form">
-                    <div style="border: 1px dashed var(--card-border); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(255,255,255,0.02);" id="upload-dropzone" onclick="document.getElementById('file-upload').click()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 28px; height: 28px; margin-bottom: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-                        <div style="font-size: 13px; color: var(--color-text-muted);" id="upload-text">PDF dosyasını seçmek için tıklayın</div>
-                        <input type="file" id="file-upload" accept=".pdf" style="display: none;" onchange="handleFileSelect(event)">
+                    <div style="border: 1px dashed var(--card-border); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(255,255,255,0.02);"
+                        id="upload-dropzone" onclick="document.getElementById('file-upload').click()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round"
+                            style="width: 28px; height: 28px; margin-bottom: 8px;">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="12" y1="18" x2="12" y2="12"></line>
+                            <line x1="9" y1="15" x2="15" y2="15"></line>
+                        </svg>
+                        <div style="font-size: 13px; color: var(--color-text-muted);" id="upload-text">PDF dosyasını
+                            seçmek için tıklayın</div>
+                        <input type="file" id="file-upload" accept=".pdf" style="display: none;"
+                            onchange="handleFileSelect(event)">
                     </div>
-                    <button id="upload-btn" class="btn-submit" onclick="uploadFile()" disabled style="background: linear-gradient(135deg, var(--color-success), #059669);">
+                    <button id="upload-btn" class="btn-submit" onclick="uploadFile()" disabled
+                        style="background: linear-gradient(135deg, var(--color-success), #059669);">
                         <span>Yükle ve İşle</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
                     </button>
-                    <div id="upload-status" style="font-size: 12px; text-align: center; margin-top: 4px; display: none; padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.2);"></div>
-                    <div id="uploaded-files-list" style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 150px; overflow-y: auto;">
+                    <div id="upload-status"
+                        style="font-size: 12px; text-align: center; margin-top: 4px; display: none; padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.2);">
+                    </div>
+                    <div id="uploaded-files-list"
+                        style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 150px; overflow-y: auto;">
                         <!-- File items will be injected here -->
                     </div>
                 </div>
@@ -915,7 +1013,10 @@
             <!-- Pipeline Progress Visualizer -->
             <div class="glass-card">
                 <div class="card-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                    </svg>
                     İşlem Aşamaları
                 </div>
                 <div class="pipeline-steps">
@@ -960,26 +1061,34 @@
 
         <!-- Right Side: Content Area -->
         <div class="workspace-content">
-            
+
             <!-- Welcome screen before query -->
             <div class="welcome-screen" id="welcome-view">
                 <div class="welcome-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
                 </div>
                 <h2>Ajan Çalışma Alanına Hoş Geldiniz</h2>
-                <p>Sorunuzu girerek kendi kendini doğrulayan ve düzelten RAG mimarisini test etmeye başlayın. Sorgunuzdaki her iddia doğrulanacak ve uydurmalar anında filtrelenecektir.</p>
-                
+                <p>Sorunuzu girerek kendi kendini doğrulayan ve düzelten RAG mimarisini test etmeye başlayın.
+                    Sorgunuzdaki her iddia doğrulanacak ve uydurmalar anında filtrelenecektir.</p>
+
                 <div class="example-queries">
-                    <button class="example-btn" onclick="useExample('What is the main proposal of Bitcoin to prevent double-spending?')">
+                    <button class="example-btn"
+                        onclick="useExample('What is the main proposal of Bitcoin to prevent double-spending?')">
                         <strong>Bitcoin:</strong> Prevent double-spending without a trusted third party?
                     </button>
-                    <button class="example-btn" onclick="useExample('How does LoRA reduce the number of trainable parameters during fine-tuning?')">
+                    <button class="example-btn"
+                        onclick="useExample('How does LoRA reduce the number of trainable parameters during fine-tuning?')">
                         <strong>LoRA:</strong> How does it reduce trainable parameters?
                     </button>
-                    <button class="example-btn" onclick="useExample('What is the formula of Scaled Dot-Product Attention in Transformers?')">
+                    <button class="example-btn"
+                        onclick="useExample('What is the formula of Scaled Dot-Product Attention in Transformers?')">
                         <strong>Transformer:</strong> Scaled Dot-Product Attention formula?
                     </button>
-                    <button class="example-btn" onclick="useExample('What is the target global warming limit in Celsius in the IPCC report?')">
+                    <button class="example-btn"
+                        onclick="useExample('What is the target global warming limit in Celsius in the IPCC report?')">
                         <strong>IPCC Climate:</strong> Global warming limit in Celsius?
                     </button>
                 </div>
@@ -987,7 +1096,7 @@
 
             <!-- Dashboard Results Display -->
             <div class="results-dashboard" id="dashboard-view">
-                
+
                 <!-- Metrics Panel -->
                 <div class="metrics-grid">
                     <div class="metric-card">
@@ -1011,7 +1120,10 @@
                 <!-- Final Answer Panel -->
                 <div class="answer-container">
                     <h3 class="pane-label" style="color: white; font-size: 18px;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
                         Nihai Güvenli Cevap
                     </h3>
                     <div class="answer-bubble" id="final-answer">
@@ -1022,7 +1134,11 @@
                 <!-- Repair Comparison (Hidden if no repair is needed) -->
                 <div class="answer-container" id="repair-panel" style="display: none;">
                     <h3 class="pane-label" style="color: white; font-size: 16px;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path>
+                        </svg>
                         Ajan Onarım Analizi (Answer Repair)
                     </h3>
                     <div class="repair-comparison">
@@ -1031,7 +1147,8 @@
                             <div class="pane-content original" id="original-draft">İlk taslak...</div>
                         </div>
                         <div class="comparison-pane">
-                            <span class="pane-label" style="color: var(--color-success);">Düzeltilmiş (Onarılmış) Güvenli Metin</span>
+                            <span class="pane-label" style="color: var(--color-success);">Düzeltilmiş (Onarılmış)
+                                Güvenli Metin</span>
                             <div class="pane-content repaired" id="repaired-draft">Düzeltilmiş metin...</div>
                         </div>
                     </div>
@@ -1040,7 +1157,14 @@
                 <!-- Claims Verification Dashboard -->
                 <div class="claims-section">
                     <h3 class="pane-label" style="color: white; font-size: 16px;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
                         İddia Seviyesinde Doğrulama Durumu (Claims Breakdown)
                     </h3>
                     <div class="claims-grid" id="claims-container">
@@ -1051,7 +1175,11 @@
                 <!-- Global Sources Panel -->
                 <div class="sources-section">
                     <h3 class="pane-label" style="color: white; font-size: 16px;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z">
+                            </path>
+                        </svg>
                         Qdrant'tan Getirilen Doküman Parçaları (Global Sources)
                     </h3>
                     <div class="sources-grid" id="sources-container">
@@ -1072,7 +1200,7 @@
             const dropzone = document.getElementById('upload-dropzone');
             const uploadText = document.getElementById('upload-text');
             const uploadBtn = document.getElementById('upload-btn');
-            
+
             if (file && file.name.toLowerCase().endsWith('.pdf')) {
                 selectedFile = file;
                 uploadText.textContent = file.name;
@@ -1095,7 +1223,7 @@
 
             const uploadBtn = document.getElementById('upload-btn');
             const statusDiv = document.getElementById('upload-status');
-            
+
             uploadBtn.disabled = true;
             uploadBtn.innerHTML = `<span>Yükleniyor...</span>`;
             statusDiv.style.display = 'block';
@@ -1111,11 +1239,11 @@
                     body: formData
                 });
                 const result = await response.json();
-                
+
                 if (result.status === 'success') {
                     statusDiv.style.color = 'var(--color-success)';
                     statusDiv.textContent = 'Başarılı: ' + result.message;
-                    
+
                     // Reset upload area after 3 seconds
                     setTimeout(() => {
                         document.getElementById('file-upload').value = '';
@@ -1145,9 +1273,9 @@
                 const data = await res.json();
                 const listContainer = document.getElementById('uploaded-files-list');
                 if (!listContainer) return;
-                
+
                 listContainer.innerHTML = '';
-                
+
                 if (data.files && data.files.length > 0) {
                     data.files.forEach(file => {
                         const item = document.createElement('div');
@@ -1165,7 +1293,7 @@
                 console.error("Dosya listesi alınamadı:", err);
             }
         }
-        
+
         document.addEventListener('DOMContentLoaded', fetchUploadedFiles);
 
         function useExample(text) {
@@ -1175,9 +1303,9 @@
         function setStepStatus(stepId, status) {
             const stepEl = document.getElementById(stepId);
             if (!stepEl) return;
-            
+
             stepEl.className = 'step-item'; // Reset classes
-            
+
             if (status === 'active') {
                 stepEl.classList.add('active');
             } else if (status === 'completed') {
@@ -1202,7 +1330,7 @@
             const submitBtn = document.getElementById('submit-btn');
             const welcomeView = document.getElementById('welcome-view');
             const dashboardView = document.getElementById('dashboard-view');
-            
+
             // UI state updates
             submitBtn.disabled = true;
             resetSteps();
@@ -1227,7 +1355,7 @@
 
                 // Step 4: Verification
                 setStepStatus('step-verify', 'active');
-                
+
                 // Trigger API call
                 const response = await fetch('/query', {
                     method: 'POST',
@@ -1238,7 +1366,7 @@
                 if (!response.ok) throw new Error('API isteği başarısız oldu.');
 
                 const data = await response.json();
-                
+
                 setStepStatus('step-verify', 'completed');
 
                 // Step 5: Repair decision
@@ -1248,7 +1376,7 @@
 
                 // Render Results
                 renderDashboard(data);
-                
+
                 dashboardView.style.display = 'flex';
 
             } catch (err) {
@@ -1273,31 +1401,31 @@
                 unknown_counts: 0,
                 overall_confidence: 0
             };
-            
+
             document.getElementById('metric-total').textContent = v.total_claims;
             document.getElementById('metric-supported').textContent = v.supported_counts;
             document.getElementById('metric-failed').textContent = v.refuted_counts + v.unknown_counts;
             document.getElementById('metric-confidence').textContent = (v.overall_confidence || 0).toFixed(2);
 
             // Final answer
-            document.getElementById('final-answer').innerHTML = data.answer;
+            document.getElementById('final-answer').innerHTML = marked.parse(data.answer || "");
 
             // Claims breakdown & Repair logic
             const claimsContainer = document.getElementById('claims-container');
             claimsContainer.innerHTML = '';
-            
+
             const verifications = v.verifications || [];
-            
+
             // Check if Answer Repair was executed
             const repairPanel = document.getElementById('repair-panel');
             const hasUnverified = v.supported_counts < v.total_claims;
-            
+
             if (hasUnverified && verifications.length > 0) {
                 repairPanel.style.display = 'block';
                 // Original draft would have the unsupported claims. Let's list the claims as initial draft elements:
-                const allClaimsList = verifications.map((item, idx) => `[${idx+1}] ${item.claim}`).join('\n');
+                const allClaimsList = verifications.map((item, idx) => `[${idx + 1}] ${item.claim}`).join('\n');
                 document.getElementById('original-draft').textContent = allClaimsList;
-                document.getElementById('repaired-draft').innerHTML = data.answer;
+                document.getElementById('repaired-draft').innerHTML = marked.parse(data.answer || "");
             } else {
                 repairPanel.style.display = 'none';
             }
@@ -1365,7 +1493,7 @@
             // Build General Sources Cards
             const sourcesContainer = document.getElementById('sources-container');
             sourcesContainer.innerHTML = '';
-            
+
             const sources = data.sources || [];
             if (sources.length === 0) {
                 sourcesContainer.innerHTML = '<div class="evidence-item" style="grid-column: 1/-1;">Kaynak döküman bulunamadı.</div>';
@@ -1386,15 +1514,20 @@
                     sourcesContainer.appendChild(card);
                 });
             }
+
+            // Trigger MathJax typesetting for dynamically injected LaTeX
+            if (window.MathJax) {
+                window.MathJax.typesetPromise().catch((err) => console.log(err.message));
+            }
         }
 
         function toggleClaimDetail(index) {
             const cardEl = document.getElementById(`claim-card-${index}`);
             const detailEl = document.getElementById(`claim-detail-${index}`);
-            
+
             if (cardEl && detailEl) {
                 const isExpanded = cardEl.classList.contains('expanded');
-                
+
                 // Toggle current
                 if (isExpanded) {
                     cardEl.classList.remove('expanded');
@@ -1407,4 +1540,5 @@
         }
     </script>
 </body>
+
 </html>
