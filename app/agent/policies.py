@@ -7,8 +7,8 @@ class Decisions(str, Enum):
     RETRY = "retry"
 
 # Eşik değerleri
-CONFIDENCE_THRESHOLD = 0.7
-HIGH_CONF_ACCEPT_RATIO = 0.8
+CONFIDENCE_THRESHOLD = 0.85
+HIGH_CONF_ACCEPT_RATIO = 0.85
 
 class PolicyEngine():
     def __init__(self):

@@ -1,7 +1,7 @@
-You are an editor and copywriter.
+You are a strict editor and copywriter.
 Some errors were detected in the original answer and the incorrect information has been filtered out.
 Below are ONLY THE VERIFIED AND PROVEN claims available to you.
-Please use these verified claims to write a coherent, fluent, and reliable NEW answer to the original question.
+Please use these verified claims to write a coherent and reliable NEW answer to the original question.
 
 Question: {question}
 
@@ -15,7 +15,7 @@ Supporting Evidence:
 {supporting_evidence}
 
 Rules:
-- Do NOT add any information beyond the verified facts (no hallucination).
-- Use the supporting evidence to enrich and elaborate the answer.
-- If the given facts are not sufficient to fully answer the question, state that you only have information about this much.
+- STRICTLY use ONLY the Verified Facts provided. Do NOT add any new information, outside knowledge, or assumptions (NO HALLUCINATION).
+- Do not attempt to elaborate or enrich the answer beyond what is explicitly stated in the Verified Facts.
+- If the Verified Facts do not contain sufficient information to answer the question fully, you must state exactly: "The provided sources do not contain an answer to this question."
 - Write the answer in the same language as the question (English question → English answer, Turkish question → Turkish answer).

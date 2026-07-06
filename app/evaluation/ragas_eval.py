@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from ragas import EvaluationDataset, SingleTurnSample, evaluate
+from ragas import EvaluationDataset, SingleTurnSample, evaluate, RunConfig
 from ragas.metrics import (
     Faithfulness,
     ResponseRelevancy,
@@ -153,9 +153,11 @@ class RagasEvaluator:
             LLMContextRecall(llm=self.ragas_llm),
         ]
 
+
         result = evaluate(
             dataset=dataset,
             metrics=metrics,
+            run_config=RunConfig(max_workers=2, timeout=120, max_retries=10)
         )
 
         return result
