@@ -13,6 +13,7 @@ Usage:
 
 import json
 import asyncio
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -41,6 +42,40 @@ logger = get_logger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EVAL_DATASET_PATH = PROJECT_ROOT / "data" / "eval" / "eval_dataset.json"
 EVAL_OUTPUT_DIR = PROJECT_ROOT / "data" / "eval"
+CHECKPOINT_PATH = EVAL_OUTPUT_DIR / "_checkpoint.json"
+
+# ── Retry Config ─────────────────────────────────────────────────────
+MAX_RETRIES_PER_QUESTION = 3
+RETRY_BASE_DELAY = 5  # saniye
+
+
+def _retry_with_backoff(func, *args, max_retries=MAX_RETRIES_PER_QUESTION, **kwargs):
+    """Herhangi bir fonksiyonu exponential backoff ile yeniden dener.
+
+    OpenAI'ın boş yanıt dönmesi (JSONDecodeError), rate limit, bağlantı
+    hataları gibi geçici sorunları yakalar ve yeniden dener.
+    """
+    last_error = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            last_error = e
+            delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+            logger.warning(
+                f"API hatası (deneme {attempt}/{max_retries}): "
+                f"{type(e).__name__}: {e} — {delay}s sonra tekrar denenecek..."
+            )
+            print(
+                f"    ⚠ API hatası (deneme {attempt}/{max_retries}): "
+                f"{type(e).__name__} — {delay}s bekleniyor..."
+            )
+            time.sleep(delay)
+
+    logger.error(f"Tüm denemeler başarısız: {type(last_error).__name__}: {last_error}")
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("Retry denemesi yapılamadı (max_retries ≤ 0)")
 
 
 class RagasEvaluator:
@@ -98,34 +133,127 @@ class RagasEvaluator:
             "contexts": contexts,
         }
 
+    # ── Checkpoint Helpers ──────────────────────────────────────────
+    def _save_checkpoint(
+        self,
+        classic_results: list[dict],
+        scr_results: list[dict],
+        completed_idx: int,
+    ):
+        """Her başarılı soru sonrası ara sonuçları diske yazar."""
+        checkpoint = {
+            "completed_idx": completed_idx,
+            "timestamp": datetime.now().isoformat(),
+            "classic_results": classic_results,
+            "scr_results": scr_results,
+        }
+        CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(CHECKPOINT_PATH, "w", encoding="utf-8") as f:
+            json.dump(checkpoint, f, indent=2, ensure_ascii=False)
+        logger.debug(f"Checkpoint kaydedildi: soru #{completed_idx}")
+
+    def _load_checkpoint(self) -> Optional[dict]:
+        """Varsa önceki checkpoint'i yükler."""
+        if CHECKPOINT_PATH.exists():
+            with open(CHECKPOINT_PATH, "r", encoding="utf-8") as f:
+                checkpoint = json.load(f)
+            logger.info(
+                f"Checkpoint bulundu: {checkpoint['completed_idx']} soru tamamlanmış "
+                f"({checkpoint['timestamp']})"
+            )
+            return checkpoint
+        return None
+
+    def _clear_checkpoint(self):
+        """Evaluation tamamlandıktan sonra checkpoint dosyasını temizler."""
+        if CHECKPOINT_PATH.exists():
+            CHECKPOINT_PATH.unlink()
+            logger.debug("Checkpoint temizlendi.")
+
     # ── 4. Collect All Responses ────────────────────────────────────
     def collect_responses(
         self, eval_data: list[dict]
     ) -> tuple[list[dict], list[dict]]:
-        """Run all questions through both pipelines. Returns (classic, scr) results."""
+        """Run all questions through both pipelines. Returns (classic, scr) results.
+
+        - Her soru retry ile korunur (JSONDecodeError, RateLimitError vb.)
+        - Her başarılı soru sonrası checkpoint kaydedilir
+        - Önceki checkpoint varsa kaldığı yerden devam eder
+        """
         classic_results = []
         scr_results = []
+        start_idx = 0
+
+        # Checkpoint varsa kaldığı yerden devam et
+        checkpoint = self._load_checkpoint()
+        if checkpoint:
+            classic_results = checkpoint["classic_results"]
+            scr_results = checkpoint["scr_results"]
+            start_idx = checkpoint["completed_idx"]
+            print(f"\n✓ Checkpoint'ten devam ediliyor: soru #{start_idx + 1}'den itibaren\n")
 
         total = len(eval_data)
-        for idx, sample in enumerate(eval_data, start=1):
+        failed_questions = []
+
+        for idx in range(start_idx, total):
+            sample = eval_data[idx]
             question = sample["question"]
             ground_truth = sample["ground_truth"]
-            print(f"\n[{idx}/{total}] Processing: {question[:80]}...")
+            display_idx = idx + 1
+            print(f"\n[{display_idx}/{total}] Processing: {question[:80]}...")
 
-            # Classic RAG
+            # ── Classic RAG (retry ile) ──
             print("  - Classic RAG running...")
-            classic_res = self._run_classic_rag(question)
-            classic_res["ground_truth"] = ground_truth
+            try:
+                classic_res = _retry_with_backoff(self._run_classic_rag, question)
+                classic_res["ground_truth"] = ground_truth
+            except Exception as e:
+                logger.error(f"Classic RAG başarısız (soru #{display_idx}): {e}")
+                print(f"    ✗ Classic RAG başarısız — atlanıyor: {type(e).__name__}")
+                classic_res = {
+                    "question": question,
+                    "answer": f"[HATA: {type(e).__name__}]",
+                    "contexts": [],
+                    "ground_truth": ground_truth,
+                }
+                failed_questions.append({"idx": display_idx, "pipeline": "classic", "error": str(e)})
+
             classic_results.append(classic_res)
 
-            # Self-Correcting RAG
+            # ── Self-Correcting RAG (retry ile) ──
             print("  - Self-Correcting RAG running...")
-            scr_res = self._run_scr_rag(question)
-            scr_res["ground_truth"] = ground_truth
+            try:
+                scr_res = _retry_with_backoff(self._run_scr_rag, question)
+                scr_res["ground_truth"] = ground_truth
+            except Exception as e:
+                logger.error(f"SCR RAG başarısız (soru #{display_idx}): {e}")
+                print(f"    ✗ SCR RAG başarısız — atlanıyor: {type(e).__name__}")
+                scr_res = {
+                    "question": question,
+                    "answer": f"[HATA: {type(e).__name__}]",
+                    "contexts": [],
+                    "ground_truth": ground_truth,
+                }
+                failed_questions.append({"idx": display_idx, "pipeline": "scr", "error": str(e)})
+
             scr_results.append(scr_res)
 
+            # ── Checkpoint kaydet ──
+            self._save_checkpoint(classic_results, scr_results, idx + 1)
+
+            # API rate limit'e çarpmamak için sorular arasında kısa bekleme
+            if idx < total - 1:
+                time.sleep(1)
+
+        # Sonuçları özetle
+        if failed_questions:
+            print(f"\n⚠ {len(failed_questions)} API hatası atlandı:")
+            for fq in failed_questions:
+                print(f"  - Soru #{fq['idx']} ({fq['pipeline']}): {fq['error'][:100]}")
+
         logger.info(
-            f"Collected {len(classic_results)} classic + {len(scr_results)} SCR responses"
+            f"Collected {len(classic_results)} classic + {len(scr_results)} SCR responses "
+            f"({len(failed_questions)} hata atlandı)"
         )
         return classic_results, scr_results
 
@@ -153,12 +281,16 @@ class RagasEvaluator:
             LLMContextRecall(llm=self.ragas_llm),
         ]
 
-
-        result = evaluate(
-            dataset=dataset,
-            metrics=metrics,
-            run_config=RunConfig(max_workers=2, timeout=120, max_retries=10)
-        )
+        try:
+            result = evaluate(
+                dataset=dataset,
+                metrics=metrics,
+                run_config=RunConfig(max_workers=1, timeout=180, max_retries=15),
+            )
+        except Exception as e:
+            logger.error(f"RAGAS evaluate() hatası: {type(e).__name__}: {e}")
+            print(f"\n✗ RAGAS evaluation başarısız: {type(e).__name__}: {e}")
+            raise
 
         return result
 
@@ -181,29 +313,30 @@ class RagasEvaluator:
             "context_recall",
         ]
 
-        # Map RAGAS column names to our report keys
+        # Map report keys → olası RAGAS sütun adları (öncelik sırasıyla)
         column_map = {
-            "faithfulness": "faithfulness",
-            "answer_relevancy": "answer_relevancy",
-            "context_precision": "LLMContextPrecisionWithoutReference",
-            "context_recall": "context_recall",
+            "faithfulness": ["faithfulness"],
+            "answer_relevancy": ["answer_relevancy", "response_relevancy"],
+            "context_precision": [
+                "LLMContextPrecisionWithoutReference",
+                "context_precision",
+                "llm_context_precision_without_reference",
+            ],
+            "context_recall": ["context_recall", "LLMContextRecall", "llm_context_recall"],
         }
 
-        # Try to find the correct column names in the dataframe
         def get_metric_value(df, metric_name):
-            """Get metric value trying different possible column names."""
-            possible_names = [
-                metric_name,
-                metric_name.replace("_", " "),
-                f"LLM{metric_name.replace('_', ' ').title().replace(' ', '')}",
-                f"LLMContextPrecisionWithoutReference",
-            ]
-            for col_name in possible_names:
+            """Get metric value using column_map with fallback to fuzzy match."""
+            # Önce column_map'teki bilinen isimleri dene
+            candidates = column_map.get(metric_name, [metric_name])
+            for col_name in candidates:
                 if col_name in df.columns:
                     return round(float(df[col_name].mean()), 4)
-            # If not found, try partial match
+
+            # Fallback: kısmi eşleşme
+            normalized = metric_name.replace("_", "")
             for col in df.columns:
-                if metric_name.replace("_", "") in col.lower().replace("_", "").replace(" ", ""):
+                if normalized in col.lower().replace("_", "").replace(" ", ""):
                     return round(float(df[col].mean()), 4)
             return None
 
@@ -344,6 +477,9 @@ class RagasEvaluator:
 
         # Step 6: Print results
         self.print_comparison_table(report)
+
+        # Başarılı tamamlandı — checkpoint'i temizle
+        self._clear_checkpoint()
 
         print(f"Full report saved: {filepath}")
         return report

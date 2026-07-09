@@ -50,9 +50,11 @@ self-correcting-rag/
 │   │
 │   ├── retrieval/
 │   │   ├── retriever.py        # QdrantRetriever (High-Recall / High-Precision)
+│   │   ├── reranker.py         # CrossEncoder tabanlı reranking (ms-marco-MiniLM)
 │   │   ├── chunking.py         # Recursive semantic chunking + overlap
 │   │   ├── embedder.py         # Sentence Transformers embedding
-│   │   └── query_rewriter.py   # LLM ile sorgu reformülasyonu (Retry için)
+│   │   ├── query_rewriter.py   # LLM ile sorgu reformülasyonu (Retry için)
+│   │   └── query_rewrite.py    # Sorgu yeniden yazım yardımcı modülü
 │   │
 │   ├── generation/
 │   │   ├── llm.py              # OpenAI API istemcisi (LLMClient)
@@ -70,6 +72,9 @@ self-correcting-rag/
 │   │   ├── controller.py       # Self-correction karar mantığı (agentic core)
 │   │   └── policies.py         # Accept / Repair / Retry politikaları
 │   │
+│   ├── utils/
+│   │   └── prompts.py          # PromptLoader – prompt dosyalarını yükleme yardımcısı
+│   │
 │   ├── prompts/
 │   │   ├── answer_system.txt       # Cevap üretim sistem prompt'u
 │   │   ├── answer_user.txt         # Cevap üretim kullanıcı prompt'u
@@ -86,31 +91,42 @@ self-correcting-rag/
 │   │   ├── query.py            # QueryRequest / QueryResponse
 │   │   ├── retrieval.py        # Chunk / RetrievalResult
 │   │   ├── claims.py           # Claim / ClaimType
-│   │   └── verification.py     # ClaimVerification / VerificationStatus
+│   │   ├── verification.py     # ClaimVerification / VerificationStatus
+│   │   ├── answer.py           # Cevap şeması
+│   │   └── response.py         # Genel response şeması
 │   │
-│   └── evaluation/
-│       └── ragas_eval.py       # RAGAS metriklerle karşılaştırmalı değerlendirme
-│
-├── data/
-│   ├── raw/                    # Kaynak dokümanlar (PDF ve TXT)
-│   └── eval/                   # Test soruları, ground truth & RAGAS raporları
+│   ├── evaluation/
+│   │   ├── ragas_eval.py       # RAGAS metriklerle karşılaştırmalı değerlendirme
+│   │   ├── baseline.py         # Klasik RAG vs Self-Correcting RAG karşılaştırması
+│   │   └── metrics.py          # Claim doğruluk oranı metrikleri (EvaluationMetrics)
+│   │
+│   └── scripts/
+│       └── generate_dataset.py # Qdrant'tan chunk çekip eval dataset oluşturma
 │
 ├── scripts/
 │   ├── ingest.py               # Doküman yükleme & indexleme
 │   └── reindex.py              # Vector DB yeniden indexleme
 │
 ├── tests/
-│   └── test_verification.py    # Verification engine testleri
+│   ├── test_verification.py    # Verification engine testleri
+│   ├── test_agent.py           # Agent controller testleri
+│   ├── test_api.py             # FastAPI endpoint testleri
+│   ├── test_chunking.py        # Chunking modülü testleri
+│   ├── test_claims.py          # Claim extraction testleri
+│   ├── test_policies.py        # Policy karar mantığı testleri
+│   ├── test_query_rewriter.py  # Query rewriter testleri
+│   └── test_repair.py          # Answer repair testleri
 │
 ├── docker/
 │   ├── Dockerfile
 │   └── docker-compose.yml
 │
-├── docs/
-│   ├── projeaciklamasi.md      # Detaylı proje açıklaması
-│   └── sprint_plan.md          # Sprint bazlı öğrenim planı
+├── assets/
+│   ├── mimari.png              # Sistem mimarisi diyagramı
+│   └── logo.png                # Proje logosu
 │
-├── .env                        # Ortam değişkenleri
+├── .env.example                # Örnek ortam değişkenleri dosyası
+├── .dockerignore
 ├── pyproject.toml
 └── requirements.txt
 ```
@@ -142,17 +158,23 @@ pip install -r requirements.txt
 
 ### 3. Ortam Değişkenlerini Ayarla
 
-`.env` dosyası oluştur:
+`.env.example` dosyasını kopyalayıp `.env` olarak yeniden adlandırın ve değerleri düzenleyin:
+
+```bash
+cp .env.example .env
+```
+
+`.env` dosyası içeriği:
 
 ```env
+OPENAI_API_KEY=sk-your-key-here
 MODEL_NAME=gpt-4o-mini
 TEMPERATURE=0.1
-MAX_RETRY=3
-CONFIDENCE_THRESHOLD=0.7
-TOP_K=5
-OPENAI_API_KEY=sk-...
+MAX_RETRY=2
 QDRANT_URL=http://localhost:6333
 ```
+
+> **Not:** `CONFIDENCE_THRESHOLD` (default: 0.7) ve `TOP_K` (default: 5) değerleri `app/core/config.py` içinde varsayılan olarak tanımlıdır. Gerekirse `.env` dosyasından override edebilirsiniz.
 
 ### 4. Qdrant'ı Başlat (Docker)
 
@@ -204,6 +226,12 @@ curl -X POST http://localhost:8000/query \
 curl -X POST http://localhost:8000/upload -F "file=@document.pdf"
 ```
 
+### Yüklü Dosyaları Listele (API)
+
+```bash
+curl http://localhost:8000/files
+```
+
 ### İnteraktif API Dokümantasyonu (Swagger UI)
 
 Uygulama çalışırken tarayıcıda açın: http://localhost:8000/docs
@@ -235,10 +263,34 @@ Tek başına **doğru veya yanlış** olarak değerlendirilebilen minimum bilgi 
 | RETRY | Hiçbir claim supported değil | Soruyu reformüle edip tekrar dener |
 
 ### Retrieval Modları
-| Mod | Kullanım | top_k | Threshold |
-|---|---|---|---|
-| HIGH_RECALL | İlk cevap üretimi | 10 | 0.3 |
-| HIGH_PRECISION | Claim doğrulama | 3 | 0.4 |
+| Mod | Kullanım | Retrieval top_k | Final top_k | Threshold |
+|---|---|---|---|---|
+| HIGH_RECALL | İlk cevap üretimi | 25 | 10 | 0.25 |
+| HIGH_PRECISION | Claim doğrulama | 15 | 3 | 0.35 |
+
+> **Not:** Retrieval işlemi iki aşamalıdır — önce Qdrant'tan `Retrieval top_k` kadar sonuç çekilir, ardından CrossEncoder reranker ile `Final top_k` kadar sonuca indirgenir.
+
+---
+
+## Testler
+
+Tüm testleri çalıştırmak için:
+
+```bash
+pytest tests/
+```
+
+Mevcut test modülleri:
+| Test Dosyası | Kapsam |
+|---|---|
+| `test_verification.py` | Verification engine |
+| `test_agent.py` | Agent controller |
+| `test_api.py` | FastAPI endpoint'leri |
+| `test_chunking.py` | Chunking modülü |
+| `test_claims.py` | Claim extraction |
+| `test_policies.py` | Policy karar mantığı |
+| `test_query_rewriter.py` | Query rewriter |
+| `test_repair.py` | Answer repair |
 
 ---
 
@@ -246,8 +298,24 @@ Tek başına **doğru veya yanlış** olarak değerlendirilebilen minimum bilgi 
 
 Self-Correcting RAG'in değerini kanıtlamak için klasik RAG ile karşılaştırmalı testler yapabilirsiniz.
 
+### RAGAS Değerlendirmesi
+
 ```bash
 python -m app.evaluation.ragas_eval
+```
+
+### Baseline Karşılaştırması (Klasik RAG vs Self-Correcting RAG)
+
+```bash
+python -m app.evaluation.baseline
+```
+
+### Eval Dataset Oluşturma
+
+Qdrant'taki mevcut chunk'lardan otomatik olarak test soruları oluşturmak için:
+
+```bash
+python -m app.scripts.generate_dataset
 ```
 
 ### Metrikler
@@ -270,9 +338,12 @@ Sonuçlar `data/eval/ragas_report_*.json` dosyasına kaydedilir.
 | Veri Doğrulama | Pydantic v2 |
 | Vector DB | Qdrant |
 | Embedding | Sentence Transformers (all-MiniLM-L6-v2) |
+| Reranking | CrossEncoder (ms-marco-MiniLM-L-6-v2) |
 | LLM | OpenAI API (gpt-4o-mini) |
+| PDF İşleme | PyMuPDF |
 | Konteyner | Docker + Docker Compose |
 | Değerlendirme | RAGAS + LangChain |
+| Test | pytest |
 
 ---
 
