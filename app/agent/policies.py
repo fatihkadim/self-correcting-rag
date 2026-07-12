@@ -1,5 +1,6 @@
 from enum import Enum
 from app.schemas.verification import VerificationResult, VerificationStatus
+from app.core.config import settings
 
 class Decisions(str, Enum):
     ACCEPT = "accept"
@@ -7,7 +8,6 @@ class Decisions(str, Enum):
     RETRY = "retry"
 
 # Eşik değerleri
-CONFIDENCE_THRESHOLD = 0.85
 HIGH_CONF_ACCEPT_RATIO = 0.85
 
 class PolicyEngine():
@@ -25,7 +25,7 @@ class PolicyEngine():
         # (gereksiz repair/retry'ı önler)
         high_conf_supported = sum(
             1 for v in result.verifications
-            if v.status == VerificationStatus.SUPPORTED and v.confidence >= CONFIDENCE_THRESHOLD
+            if v.status == VerificationStatus.SUPPORTED and v.confidence >= settings.confidence_threshold
         )
         if high_conf_supported / result.total_claims >= HIGH_CONF_ACCEPT_RATIO:
             return Decisions.ACCEPT

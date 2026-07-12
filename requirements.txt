@@ -1,25 +1,25 @@
 # ─── Web Framework ────────────────────────────────────────────────
-fastapi
-uvicorn[standard]
+fastapi==0.131.0
+uvicorn[standard]==0.40.0
 
 # ─── Data Validation ──────────────────────────────────────────────
-pydantic
-pydantic-settings
+pydantic==2.12.5
+pydantic-settings==2.13.0
 
 # ─── Vector Database & Embeddings ──────────────────────
-qdrant-client
-sentence-transformers
+qdrant-client==1.17.0
+sentence-transformers==5.2.3
 
 # LLM
-openai
+openai==2.26.0
 
 # PDF Processing
-PyMuPDF
+PyMuPDF==1.27.2.3
 
-pathlib
+pathlib==1.0.1
 
 # Testing & Evaluation
-pytest
-ragas
-datasets
-langchain-openai
+pytest==9.0.3
+ragas==0.4.3
+datasets==4.8.5
+langchain-openai==1.2.2
