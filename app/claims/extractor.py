@@ -1,10 +1,12 @@
 from app.generation.llm import LLMClient
 from app.schemas.claims import Claim, ClaimExtractionResult
 from app.utils.prompts import PromptLoader
+from app.core.logger import get_logger
 import json
 class ClaimExtractor():
     def __init__(self, llm_client: LLMClient):
         self.llm = llm_client
+        self.logger = get_logger(__name__)
     
     def extract(self,answer):
         
@@ -20,10 +22,10 @@ class ClaimExtractor():
             result = ClaimExtractionResult(claims = claims,original_answer=answer,claim_count=len(claims))
             return result
         except json.JSONDecodeError as e:
-            print(f"json ayrıstırma hatası: {e}")
+            self.logger.warning("JSON parse hatası: %s", e)
             return None
         except Exception as e:
-            print(f"beklenmeyen hata {e}")
+            self.logger.warning("Beklenmeyen hata: %s", e)
             return None
  
     def _clean_json(self,text):

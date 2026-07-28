@@ -5,7 +5,6 @@ from app.claims.extractor import ClaimExtractor
 from app.retrieval.retriever import QdrantRetriever
 from app.generation.answer import AnswerGenerator
 from app.generation.llm import LLMClient
-from app.agent.policies import PolicyEngine
 from app.core.config import settings
 from app.schemas.query import QueryRequest, QueryResponse
 from app.agent.policies import PolicyEngine, Decisions
@@ -15,13 +14,14 @@ logger = get_logger(__name__)
 
 class SelfCorrectionController():
     def __init__(self):
+        llm = LLMClient()
         self.retriever = QdrantRetriever()
-        self.answer_generator = AnswerGenerator(llm_client=LLMClient())
-        self.claim_extractor = ClaimExtractor(llm_client=LLMClient())
-        self.verifier = VerificationEngine(retriever=self.retriever)
-        self.answer_repair = AnswerRepair(llm_client=LLMClient())
+        self.answer_generator = AnswerGenerator(llm_client=llm)
+        self.claim_extractor = ClaimExtractor(llm_client=llm)
+        self.verifier = VerificationEngine(retriever=self.retriever, llm_client=llm)
+        self.answer_repair = AnswerRepair(llm_client=llm)
         self.decider = PolicyEngine()
-        self.query_rewriter = QueryRewriter(llm_client=LLMClient())
+        self.query_rewriter = QueryRewriter(llm_client=llm)
 
     def run(self,request:QueryRequest) -> QueryResponse:
         attempt= 0

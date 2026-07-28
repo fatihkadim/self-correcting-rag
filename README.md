@@ -1,3 +1,5 @@
+**🇬🇧 [English](#self-correcting-rag) | 🇹🇷 [Türkçe](#self-correcting-rag-tr)**
+
 # Self-Correcting RAG
 
 > **A self-correcting RAG system that produces provable and defensible answers.**
@@ -53,8 +55,7 @@ self-correcting-rag/
 │   │   ├── reranker.py         # CrossEncoder based reranking
 │   │   ├── chunking.py         # Recursive semantic chunking + overlap
 │   │   ├── embedder.py         # Sentence Transformers embedding
-│   │   ├── query_rewriter.py   # Query reformulation using LLM
-│   │   └── query_rewrite.py    # Query rewrite helper
+│   │   └── query_rewriter.py   # Query reformulation using LLM
 │   │
 │   ├── generation/
 │   │   ├── llm.py              # OpenAI API client
@@ -91,9 +92,7 @@ self-correcting-rag/
 │   │   ├── query.py            # Query schemas
 │   │   ├── retrieval.py        # Retrieval schemas
 │   │   ├── claims.py           # Claim schemas
-│   │   ├── verification.py     # Verification schemas
-│   │   ├── answer.py           # Answer schemas
-│   │   └── response.py         # Global response schema
+│   │   └── verification.py     # Verification schemas
 │   │
 │   ├── evaluation/
 │   │   ├── ragas_eval.py       # RAGAS metric evaluation
@@ -325,5 +324,241 @@ python -m app.scripts.generate_dataset
 ---
 
 ## License
+
+MIT
+
+---
+---
+
+<a id="self-correcting-rag-tr"></a>
+
+**🇬🇧 [English](#self-correcting-rag) | 🇹🇷 [Türkçe](#self-correcting-rag-tr)**
+
+# Self-Correcting RAG (TR)
+
+> **Kanıtlanabilir ve savunulabilir cevaplar üreten, kendini düzelten bir RAG sistemi.**
+
+Klasik RAG sistemleri cevap üretir ama doğrulamaz. Bu proje **ürettiği her cevabı iddialara ayırır**, **her iddiayı kanıtlarla doğrular** ve gerektiğinde **kendini düzeltir**.
+
+---
+
+## Proje Felsefesi
+
+Bu proje "en hızlı cevap" yerine **kanıtlanabilir ve savunulabilir cevaplar** üretmeyi hedefler.
+
+| Klasik RAG | Self-Correcting RAG |
+|---|---|
+| Cevabı üretir ve sunar | Cevabı üretir, iddialara ayırır, doğrular |
+| LLM'e güvenir | LLM'i sorgular |
+| Halüsinasyon kontrolü yok | İddia düzeyinde halüsinasyon tespiti |
+| Tek geçişli (one-shot) | Yinelemeli, geri bildirim döngüsü |
+
+---
+
+## Sistem Mimarisi
+
+Kullanıcının sorusuna ilk cevabı ürettikten sonra sistem şu adımları izler:
+1. Cevap içindeki her bağımsız bilgi ifadesini (iddia) çıkarır.
+2. Her iddia için ayrı, yüksek hassasiyetli bir veri araması yapar (Kanıt Kontrolü).
+3. Kanıtları LLM Yargıcı ile karşılaştırır ve iddiaları desteklendi, çürütüldü veya bilinmiyor olarak etiketler.
+4. Doğrulanmamış iddialar varsa, cevabı yalnızca doğrulanmış bilgilerle yeniden yazar (Cevap Onarımı).
+5. Hiçbir iddia desteklenmiyorsa, sorguyu yeniden formüle eder ve tekrar dener (Sorgu Yeniden Yazma + Tekrar).
+
+![Sistem Mimarisi](./assets/mimari.png)
+
+---
+
+## Kurulum
+
+### Gereksinimler
+- Python 3.11+
+- Docker & Docker Compose
+
+### 1. Depoyu Klonlayın
+
+```bash
+git clone https://github.com/fatihkadim/self-correcting-rag.git
+cd self-correcting-rag
+```
+
+### 2. Sanal Ortam ve Bağımlılıklar
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate      # Windows
+# source .venv/bin/activate  # Linux/macOS
+
+pip install -r requirements.txt
+```
+
+### 3. Ortam Değişkenlerini Ayarlayın
+
+`.env.example` dosyasını `.env` olarak kopyalayın ve değerlerinizi girin:
+
+```bash
+cp .env.example .env
+```
+
+`.env` içeriği:
+
+```env
+OPENAI_API_KEY=sk-your-key-here
+MODEL_NAME=gpt-4o-mini
+TEMPERATURE=0.1
+MAX_RETRY=2
+QDRANT_URL=http://localhost:6333
+```
+
+> **Not:** `CONFIDENCE_THRESHOLD` (varsayılan: 0.7) ve `TOP_K` (varsayılan: 5) `app/core/config.py` içinde tanımlanmıştır.
+
+### 4. Qdrant'ı Başlatın (Docker)
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+### 5. Dokümanları İndeksleyin
+
+PDF veya TXT dosyalarınızı `data/raw` altına ekleyin ve çalıştırın:
+
+```bash
+python scripts/ingest.py
+```
+
+### 6. Uygulamayı Çalıştırın
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+---
+
+## Kullanım
+
+### Web Arayüzü (Önerilen)
+Uygulama çalışırken tarayıcınızda aşağıdaki adrese gidin:
+http://localhost:8000/
+
+### API Sağlık Kontrolü
+
+```bash
+curl http://localhost:8000/health
+```
+
+### API Sorgu Gönderme
+
+```bash
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Transformer mimarisi nedir?"}'
+```
+
+### Doküman Yükleme (API)
+
+```bash
+curl -X POST http://localhost:8000/upload -F "file=@dokuman.pdf"
+```
+
+### Yüklenen Dosyaları Listeleme (API)
+
+```bash
+curl http://localhost:8000/files
+```
+
+### İnteraktif API Dokümantasyonu (Swagger UI)
+
+http://localhost:8000/docs
+
+---
+
+## Temel Kavramlar
+
+### İddia (Claim) Nedir?
+Bağımsız olarak **doğru veya yanlış** olarak değerlendirilebilen en küçük bilgi birimi.
+
+| Geçerli İddia | Geçersiz İddia |
+|---|---|
+| "Python 1991'de geliştirildi." | "Python güzel bir dildir." |
+| "FastAPI async destekler." | "Bu framework faydalıdır." |
+
+### Doğrulama Durumları
+| Durum | Anlamı |
+|---|---|
+| supported | Kanıt bulundu ve doğrulandı |
+| refuted | Kanıt bulundu ve çürütüldü |
+| unknown | Yetersiz kanıt |
+
+### Politika Kararları
+| Karar | Koşul | Eylem |
+|---|---|---|
+| ACCEPT | Tüm iddialar desteklendi | Cevabı olduğu gibi döndürür |
+| REPAIR | Bazı iddialar desteklendi | Yalnızca doğrulanmış iddialarla yeniden yazar |
+| RETRY | Hiçbir iddia desteklenmedi | Sorguyu yeniden formüle eder ve tekrar dener |
+
+### Retrieval Modları
+| Mod | Kullanım | Retrieval top_k | Final top_k | Eşik |
+|---|---|---|---|---|
+| HIGH_RECALL | İlk cevap üretimi | 25 | 10 | 0.25 |
+| HIGH_PRECISION | İddia doğrulama | 15 | 3 | 0.35 |
+
+> **Not:** Retrieval iki aşamalı bir süreçtir — Qdrant'tan `Retrieval top_k` kadar sonuç getirir, ardından CrossEncoder ile `Final top_k`'ya yeniden sıralar.
+
+---
+
+## Testler
+
+Tüm testleri çalıştırın:
+
+```bash
+pytest tests/
+```
+
+---
+
+## Değerlendirme (RAGAS)
+
+### RAGAS Değerlendirmesi
+```bash
+python -m app.evaluation.ragas_eval
+```
+
+### Baseline Karşılaştırma
+```bash
+python -m app.evaluation.baseline
+```
+
+### Veri Seti Üretimi
+```bash
+python -m app.scripts.generate_dataset
+```
+
+### Metrikler
+| Metrik | Açıklama |
+|---|---|
+| **Faithfulness** | Cevap, alınan bağlama sadık mı? |
+| **Answer Relevancy** | Cevap soruyla ilgili mi? |
+| **Context Precision** | İlgili dokümanlar daha üst sıralarda mı? |
+| **Context Recall** | Bağlam, doğru cevabı kapsıyor mu? |
+
+---
+
+## Teknoloji Yığını
+
+| Katman | Teknoloji |
+|---|---|
+| Web Framework | FastAPI + Uvicorn |
+| Veri Doğrulama | Pydantic v2 |
+| Vektör Veritabanı | Qdrant |
+| Embedding | Sentence Transformers (all-MiniLM-L6-v2) |
+| Yeniden Sıralama | CrossEncoder (ms-marco-MiniLM-L-6-v2) |
+| LLM | OpenAI API (gpt-4o-mini) |
+| PDF İşleme | PyMuPDF |
+| Container | Docker + Docker Compose |
+| Değerlendirme | RAGAS + LangChain |
+| Test | pytest |
+
+---
+
+## Lisans
 
 MIT
