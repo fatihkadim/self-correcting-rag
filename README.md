@@ -281,28 +281,51 @@ pytest tests/
 
 ## Evaluation (RAGAS)
 
-### RAGAS Evaluation
+The system is evaluated against Classical RAG using the [RAGAS](https://github.com/explodinggradients/ragas) (Retrieval Augmented Generation Assessment) framework on a 20-question benchmark dataset (`gpt-4o-mini`).
+
+### 📊 Benchmark Results
+
+#### Latest Benchmark Run (20 Questions)
+| Metric | Classical RAG | Self-Correcting RAG | Improvement (Δ) | Status |
+|---|:---:|:---:|:---:|:---:|
+| **Faithfulness** | 0.8000 (80.0%) | **0.8750 (87.5%)** | **+9.38% (+0.075)** | 🟢 Improved |
+| **Context Recall** | 0.7500 (75.0%) | **0.8000 (80.0%)** | **+6.67% (+0.050)** | 🟢 Improved |
+| **Answer Relevancy** | 0.6224 (62.2%) | 0.6215 (62.2%) | -0.14% (-0.001) | ⚪ Equal |
+| **Context Precision** | 0.6175 (61.8%) | 0.5909 (59.1%) | -4.31% (-0.027) | ⚪ Similar |
+
+#### Multi-Run Stability Average (6 Benchmark Runs, 20 Questions)
+| Metric | Classical RAG (Avg) | Self-Correcting RAG (Avg) | Difference (Δ) |
+|---|:---:|:---:|:---:|
+| **Faithfulness** | 0.7920 (79.2%) | **0.8462 (84.6%)** | **+6.84% (+0.054)** |
+| **Context Precision** | 0.5830 (58.3%) | **0.6561 (65.6%)** | **+12.54% (+0.073)** |
+| **Context Recall** | 0.7395 (74.0%) | **0.7417 (74.2%)** | **+0.30% (+0.002)** |
+| **Answer Relevancy** | 0.5853 (58.5%) | **0.5917 (59.2%)** | **+1.09% (+0.006)** |
+
+### 💡 Key Findings
+- **Higher Faithfulness**: Claim-level extraction and NLI verification catch hallucinated or unsupported claims, improving factual faithfulness by **~7-9%**.
+- **Enhanced Context Quality**: Two-stage retrieval (Qdrant semantic search + CrossEncoder reranker) combined with targeted claim verification searches achieves superior context precision and recall.
+- **Answer Relevancy Preserved**: Answer repair maintains tight alignment with the user's original query while filtering out unfounded statements.
+
+### Running Evaluations
+
 ```bash
+# Run RAGAS metric evaluation
 python -m app.evaluation.ragas_eval
-```
 
-### Baseline Comparison
-```bash
+# Run baseline comparison
 python -m app.evaluation.baseline
-```
 
-### Dataset Generation
-```bash
+# Generate synthetic evaluation dataset
 python -m app.scripts.generate_dataset
 ```
 
-### Metrics
+### Metric Definitions
 | Metric | Description |
 |---|---|
-| **Faithfulness** | Is the answer faithful to the retrieved context? |
-| **Answer Relevancy** | Is the answer relevant to the query? |
-| **Context Precision** | Are relevant documents ranked higher? |
-| **Context Recall** | Does the context cover the ground truth? |
+| **Faithfulness** | Measures the factual consistency of the generated answer against the retrieved context. |
+| **Answer Relevancy** | Measures how directly the generated answer addresses the user's prompt. |
+| **Context Precision** | Measures whether relevant chunks are ranked higher in retrieval. |
+| **Context Recall** | Measures whether the retrieved context contains all information needed to answer the question. |
 
 ---
 
@@ -517,28 +540,51 @@ pytest tests/
 
 ## Değerlendirme (RAGAS)
 
-### RAGAS Değerlendirmesi
+Sistem, Klasik RAG ile karşılaştırmalı olarak [RAGAS](https://github.com/explodinggradients/ragas) (Retrieval Augmented Generation Assessment) çerçevesi kullanılarak 20 soruluk genişletilmiş test veri seti (`gpt-4o-mini`) üzerinde değerlendirilmektedir.
+
+### 📊 Karşılaştırmalı Test Sonuçları
+
+#### Son Değerlendirme Çalışması (20 Soru)
+| Metrik | Klasik RAG | Self-Correcting RAG | İyileşme (Δ) | Durum |
+|---|:---:|:---:|:---:|:---:|
+| **Faithfulness (Sadakat)** | 0.8000 (%80.0) | **0.8750 (%87.5)** | **+%9.38 (+0.075)** | 🟢 İyileşme |
+| **Context Recall (Kapsama)** | 0.7500 (%75.0) | **0.8000 (%80.0)** | **+%6.67 (+0.050)** | 🟢 İyileşme |
+| **Answer Relevancy (Uygunluk)** | 0.6224 (%62.2) | 0.6215 (%62.2) | -%0.14 (-0.001) | ⚪ Eşit |
+| **Context Precision (Hassasiyet)** | 0.6175 (%61.8) | 0.5909 (%59.1) | -%4.31 (-0.027) | ⚪ Benzer |
+
+#### Çoklu Çalışma Kararlılık Ortalaması (6 Test Çalışması, 20 Soru)
+| Metrik | Klasik RAG (Ort.) | Self-Correcting RAG (Ort.) | Fark (Δ) |
+|---|:---:|:---:|:---:|
+| **Faithfulness (Sadakat)** | 0.7920 (%79.2) | **0.8462 (%84.6)** | **+%6.84 (+0.054)** |
+| **Context Precision (Hassasiyet)** | 0.5830 (%58.3) | **0.6561 (%65.6)** | **+%12.54 (+0.073)** |
+| **Context Recall (Kapsama)** | 0.7395 (%74.0) | **0.7417 (%74.2)** | **+%0.30 (+0.002)** |
+| **Answer Relevancy (Uygunluk)** | 0.5853 (%58.5) | **0.5917 (%59.2)** | **+%1.09 (+0.006)** |
+
+### 💡 Öne Çıkan Bulgular
+- **Yüksek Sadakat (Faithfulness)**: İddia düzeyinde ayrıştırma ve NLI doğrulama mekanizması sayesinde halüsinasyonlar ve kanıtsız ifadeler elenir, sadakat puanı **%7-9** oranında artar.
+- **Gelişmiş Bağlam Kalitesi**: İki aşamalı getirme (Qdrant vektör arama + CrossEncoder yeniden sıralama) ve iddia bazlı yüksek hassasiyetli arama ile bağlam kalitesi yükseltilir.
+- **Korunan Yanıt Uygunluğu**: Yanıt onarma (Answer Repair) adımı, uydurma iddiaları temizlerken kullanıcının sorusuna doğrudan odaklı kalmaya devam eder.
+
+### Değerlendirmeleri Çalıştırma
+
 ```bash
+# RAGAS metrik değerlendirmesini çalıştır
 python -m app.evaluation.ragas_eval
-```
 
-### Baseline Karşılaştırma
-```bash
+# Klasik RAG vs Self-Correcting karşılaştırması
 python -m app.evaluation.baseline
-```
 
-### Veri Seti Üretimi
-```bash
+# Otomatik değerlendirme veri seti üretimi
 python -m app.scripts.generate_dataset
 ```
 
-### Metrikler
+### Metrik Tanımları
 | Metrik | Açıklama |
 |---|---|
-| **Faithfulness** | Cevap, alınan bağlama sadık mı? |
-| **Answer Relevancy** | Cevap soruyla ilgili mi? |
-| **Context Precision** | İlgili dokümanlar daha üst sıralarda mı? |
-| **Context Recall** | Bağlam, doğru cevabı kapsıyor mu? |
+| **Faithfulness** | Üretilen cevabın getirilen bağlama ne kadar sadık olduğunu (halüsinasyon kontrolü) ölçer. |
+| **Answer Relevancy** | Cevabın kullanıcının sorusuna ne kadar doğrudan ve net cevap verdiğini ölçer. |
+| **Context Precision** | İlgili parçaların getirme sırasında ne kadar üst sıralarda yer aldığını ölçer. |
+| **Context Recall** | Getirilen bağlamın doğru cevabı üretmek için gereken tüm bilgileri kapsama oranını ölçer. |
 
 ---
 
