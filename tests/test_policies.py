@@ -123,9 +123,9 @@ def test_repair_when_supported_and_unknown():
 # ---------------------------------------------------------------------------
 
 def test_accept_high_confidence_mostly_supported():
-    """5 claim'den 4'ü yüksek güvenle supported, 1 unknown → ACCEPT (≥80% threshold)."""
+    """7 claim'den 6'sı yüksek güvenle supported, 1 unknown → ACCEPT (≥85% eşik)."""
     verifications = []
-    for _ in range(4):
+    for _ in range(6):
         verifications.append(
             ClaimVerification(
                 claim="high conf supported",
@@ -146,11 +146,11 @@ def test_accept_high_confidence_mostly_supported():
     )
     result = VerificationResult(
         verifications=verifications,
-        total_claims=5,
-        supported_counts=4,
+        total_claims=7,
+        supported_counts=6,
         refuted_counts=0,
         unknown_counts=1,
-        overall_confidence=0.78,
+        overall_confidence=0.81,
     )
     assert engine.decide(result) == Decisions.ACCEPT
 
@@ -187,3 +187,9 @@ def test_repair_low_confidence_supported():
     )
     assert engine.decide(result) == Decisions.REPAIR
 
+
+
+def test_refuted_claim_blocks_high_confidence_accept():
+    """Oran eşiği aşılsa bile çürütülmüş bir iddia varsa ACCEPT verilmemeli."""
+    result = _make_result(supported=6, refuted=1)  # 6/7 = 0.857 ≥ 0.85
+    assert engine.decide(result) == Decisions.REPAIR

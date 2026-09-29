@@ -1,12 +1,14 @@
 Analyze the verifiable claims in the text below and list them in the specified JSON format only.
 
 Expected JSON Output Format:
-[
-  {{
-    "claim": "<atomic_claim_sentence>",
-    "type": "<factual | temporal | causal>"
-  }}
-]
+{{
+  "claims": [
+    {{
+      "claim": "<atomic_claim_sentence>",
+      "type": "<factual | temporal | causal>"
+    }}
+  ]
+}}
 
 Text:
 {answer}

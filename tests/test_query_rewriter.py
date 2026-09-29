@@ -9,14 +9,14 @@ class FakeLLM:
     def __init__(self, response: str = "Reformüle edilmiş soru"):
         self.response = response
 
-    def generate(self, prompt: str, system_prompt: str = "") -> str:
+    def generate(self, prompt: str, system_prompt: str = "", **kwargs) -> str:
         return self.response
 
 
 class BrokenLLM:
     """Her zaman hata fırlatan sahte LLM."""
 
-    def generate(self, prompt: str, system_prompt: str = "") -> str:
+    def generate(self, prompt: str, system_prompt: str = "", **kwargs) -> str:
         raise RuntimeError("LLM bağlantı hatası")
 
 

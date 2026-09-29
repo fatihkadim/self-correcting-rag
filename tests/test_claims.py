@@ -1,5 +1,7 @@
 import json
+import pytest
 from app.claims.extractor import ClaimExtractor
+from app.utils.llm_json import parse_llm_json
 from app.schemas.claims import Claim, ClaimType, ClaimExtractionResult
 
 
@@ -15,42 +17,37 @@ class FakeLLM:
         self.last_prompt = None
         self.last_system_prompt = None
 
-    def generate(self, prompt: str, system_prompt: str = "") -> str:
+    def generate(self, prompt: str, system_prompt: str = "", **kwargs) -> str:
         self.last_prompt = prompt
         self.last_system_prompt = system_prompt
         return self.response
 
 
 # ---------------------------------------------------------------------------
-# 1. _clean_json yardımcı fonksiyonu
+# 1. parse_llm_json yardımcı fonksiyonu
 # ---------------------------------------------------------------------------
 
-def test_clean_json_removes_markdown_fences():
+def test_parse_llm_json_removes_markdown_fences():
     """```json ... ``` bloğundaki işaretler temizlenmeli."""
-    extractor = ClaimExtractor(llm_client=FakeLLM(""))
     raw = '```json\n[{"claim": "test", "type": "factual"}]\n```'
-    cleaned = extractor._clean_json(raw)
-    assert "```" not in cleaned
-    # Temizlenmiş metin geçerli JSON olmalı
-    parsed = json.loads(cleaned)
-    assert isinstance(parsed, list)
+    assert parse_llm_json(raw) == [{"claim": "test", "type": "factual"}]
 
 
-def test_clean_json_handles_plain_json():
-    """Zaten temiz JSON ise değiştirmemeli."""
-    extractor = ClaimExtractor(llm_client=FakeLLM(""))
-    raw = '[{"claim": "test", "type": "factual"}]'
-    cleaned = extractor._clean_json(raw)
-    assert cleaned == raw.strip()
+def test_parse_llm_json_handles_plain_json_and_whitespace():
+    assert parse_llm_json('   \n{"claims": []}\n   ') == {"claims": []}
 
 
-def test_clean_json_strips_whitespace():
-    """Baştaki ve sondaki boşluklar temizlenmeli."""
-    extractor = ClaimExtractor(llm_client=FakeLLM(""))
-    raw = '   \n[{"claim": "test"}]\n   '
-    cleaned = extractor._clean_json(raw)
-    assert not cleaned.startswith(" ")
-    assert not cleaned.endswith(" ")
+def test_parse_llm_json_ignores_surrounding_text():
+    """JSON'un etrafındaki açıklama metni tolere edilmeli."""
+    raw = 'İşte sonuç: {"status": "supported"} umarım yardımcı olur.'
+    assert parse_llm_json(raw) == {"status": "supported"}
+
+
+def test_parse_llm_json_raises_on_garbage():
+    with pytest.raises(ValueError):
+        parse_llm_json("bu geçerli json değil {{{")
+    with pytest.raises(ValueError):
+        parse_llm_json("")
 
 
 # ---------------------------------------------------------------------------
@@ -114,15 +111,54 @@ def test_extract_returns_none_on_invalid_json():
     assert result is None
 
 
-def test_extract_returns_none_on_schema_mismatch():
-    """JSON geçerli ama şema uyumsuz (type alanı eksik) → None."""
+def test_extract_defaults_missing_or_unknown_type_to_factual():
+    """type eksik/bilinmiyorsa tüm extraction düşmemeli, 'factual' kabul edilmeli."""
     llm_response = json.dumps([
-        {"claim": "İddia var ama type yok."}
+        {"claim": "İddia var ama type yok."},
+        {"claim": "Tanım iddiası.", "type": "definition"},
     ])
     extractor = ClaimExtractor(llm_client=FakeLLM(llm_response))
 
     result = extractor.extract("Bir cevap.")
-    assert result is None
+    assert result is not None
+    assert result.claim_count == 2
+    assert all(c.type == ClaimType.FACTUAL for c in result.claims)
+
+
+def test_extract_skips_invalid_items():
+    """Bozuk öğeler atlanmalı, geçerliler korunmalı."""
+    llm_response = json.dumps({"claims": [
+        {"claim": "Geçerli iddia.", "type": "factual"},
+        {"type": "factual"},
+        "düz metin",
+    ]})
+    extractor = ClaimExtractor(llm_client=FakeLLM(llm_response))
+
+    result = extractor.extract("Bir cevap.")
+    assert result is not None
+    assert [c.claim for c in result.claims] == ["Geçerli iddia."]
+
+
+def test_extract_accepts_json_object_format():
+    """JSON mode çıktısı {"claims": [...]} biçiminde gelir."""
+    llm_response = json.dumps({"claims": [{"claim": "A.", "type": "temporal"}]})
+    extractor = ClaimExtractor(llm_client=FakeLLM(llm_response))
+
+    result = extractor.extract("Bir cevap.")
+    assert result.claim_count == 1
+
+
+def test_extract_returns_none_when_all_items_invalid():
+    extractor = ClaimExtractor(llm_client=FakeLLM(json.dumps([{"foo": 1}])))
+    assert extractor.extract("Bir cevap.") is None
+
+
+def test_extract_returns_none_when_llm_raises():
+    class BrokenLLM:
+        def generate(self, *args, **kwargs):
+            raise RuntimeError("timeout")
+
+    assert ClaimExtractor(llm_client=BrokenLLM()).extract("Bir cevap.") is None
 
 
 def test_extract_returns_none_on_empty_string():

@@ -1,7 +1,7 @@
 from app.utils.prompts import PromptLoader
+from app.utils.llm_json import parse_llm_json
 from app.generation.llm import LLMClient
 from app.core.logger import get_logger
-import json
 
 
 class LLMJudge():
@@ -9,24 +9,20 @@ class LLMJudge():
         self.llm = llm_client
         self.logger = get_logger(__name__)
 
-    def judge(self,claim:str,evidence: list[str]):
+    def judge(self, claim: str, evidence: list[str]) -> dict | None:
         template = PromptLoader.load("verify_user.txt")
         system = PromptLoader.load("verify_system.txt")
         evidence_text = "\n".join([f"[{i+1}] {e}" for i, e in enumerate(evidence)])
-        prompt = PromptLoader.format(template,claim=claim,evidence=evidence_text)
-        response = self.llm.generate(prompt,system)        
-        clean_response = self._clean_json(response)
-    
+        prompt = PromptLoader.format(template, claim=claim, evidence=evidence_text)
+
         try:
-            parsed_data = json.loads(clean_response)  
-            return parsed_data
-        except json.JSONDecodeError as e:
-            self.logger.warning("Judge JSON parse hatası: %s", e)
-            return None
+            response = self.llm.generate(prompt, system, json_mode=True)
+            parsed = parse_llm_json(response)
         except Exception as e:
-            self.logger.warning("Judge beklenmeyen hata: %s", e)
+            self.logger.warning("Judge başarısız: %s", e)
             return None
- 
-    def _clean_json(self,text):
-        cleaned_text = text.replace("```json", "").replace("```", "").strip()
-        return cleaned_text
+
+        if not isinstance(parsed, dict):
+            self.logger.warning("Judge beklenmeyen format: %r", type(parsed).__name__)
+            return None
+        return parsed

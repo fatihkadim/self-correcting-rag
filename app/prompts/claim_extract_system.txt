@@ -8,6 +8,6 @@ Rules:
 2. STRICTLY reject subjective opinions, thoughts ("I think", "It is beautiful"), and transitional phrases. Do NOT extract them as claims.
 3. REMOVE source references (e.g., [1], [2]) from the text. Claims must be standalone.
 4. Break compound and long sentences into atomic (singular) claims that can be individually fact-checked.
-5. If there are no verifiable claims in the text, return an empty list `[]`.
+5. If there are no verifiable claims in the text (e.g. the text only states that the sources do not contain an answer), return `{"claims": []}`.
 6. Respond ONLY in JSON format. Do NOT add any other text, explanation, or markdown.
 7. STRICTLY preserve the original language of the text. If the given text is in English, the extracted claims MUST also be in English. Never translate.

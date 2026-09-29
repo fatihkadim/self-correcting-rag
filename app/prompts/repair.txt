@@ -11,11 +11,15 @@ Original Answer (contains some errors):
 Verified Facts:
 {verified_claims}
 
+Unverified or Refuted Claims (MUST NOT appear in the new answer, not even rephrased):
+{rejected_claims}
+
 Supporting Evidence:
 {supporting_evidence}
 
 Rules:
 - STRICTLY use ONLY the Verified Facts provided. Do NOT add any new information, outside knowledge, or assumptions (NO HALLUCINATION).
+- Never repeat any of the Unverified or Refuted Claims.
 - Do not attempt to elaborate or enrich the answer beyond what is explicitly stated in the Verified Facts.
-- If the Verified Facts do not contain sufficient information to answer the question fully, you must state exactly: "The provided sources do not contain an answer to this question."
+- If the Verified Facts do not contain sufficient information to answer the question fully, answer with what they do support and do not guess the rest. If they are irrelevant to the question, state exactly: "The provided sources do not contain an answer to this question."
 - Write the answer in the same language as the question (English question → English answer, Turkish question → Turkish answer).

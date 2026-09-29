@@ -1,4 +1,4 @@
-from app.generation.repair import AnswerRepair
+from app.generation.repair import AnswerRepair, NO_ANSWER_MESSAGE
 from app.schemas.verification import (
     ClaimVerification,
     VerificationResult,
@@ -15,8 +15,9 @@ class FakeLLM:
         self.response = response
         self.call_count = 0
 
-    def generate(self, prompt: str, system_prompt: str = "") -> str:
+    def generate(self, prompt: str, system_prompt: str = "", **kwargs) -> str:
         self.call_count += 1
+        self.last_prompt = prompt
         return self.response
 
 
@@ -66,7 +67,7 @@ def test_repair_calls_llm_when_supported_claims_exist():
     vr = _make_verification_result(
         [VerificationStatus.SUPPORTED, VerificationStatus.REFUTED]
     )
-    result = repair.repair("Soru?", vr, original_answer="Orijinal", original_contexts=["ctx"])
+    result = repair.repair("Soru?", vr, original_answer="Orijinal")
 
     assert result == "Düzeltilmiş cevap."
     assert fake_llm.call_count == 1
@@ -86,7 +87,7 @@ def test_repair_returns_fallback_when_no_supported_claims():
     )
     result = repair.repair("Soru?", vr)
 
-    assert "güvenilir" in result.lower() or "kanıt" in result.lower()
+    assert result == NO_ANSWER_MESSAGE
     assert fake_llm.call_count == 0
 
 
@@ -103,7 +104,27 @@ def test_repair_collects_evidence_from_supported_claims_only():
         [VerificationStatus.SUPPORTED, VerificationStatus.REFUTED],
         evidences=[["doğru kanıt"], ["yanlış kanıt"]],
     )
-    result = repair.repair("Soru?", vr)
+    repair.repair("Soru?", vr)
 
-    # LLM'e gönderilen prompt'ta "doğru kanıt" olmalı
     assert fake_llm.call_count == 1
+    # Kanıt bölümünde yalnızca supported claim'in kanıtı olmalı
+    evidence_section = fake_llm.last_prompt.split("Supporting Evidence:")[1]
+    assert "doğru kanıt" in evidence_section
+    assert "yanlış kanıt" not in evidence_section
+
+
+def test_repair_lists_rejected_claims_in_prompt():
+    """Refuted/unknown claim'ler prompt'ta 'kullanma' listesinde yer almalı."""
+    fake_llm = FakeLLM("Onarılmış.")
+    repair = AnswerRepair(llm_client=fake_llm)
+
+    vr = _make_verification_result(
+        [VerificationStatus.SUPPORTED, VerificationStatus.REFUTED]
+    )
+    repair.repair("Soru?", vr)
+
+    rejected_section = (
+        fake_llm.last_prompt.split("Unverified or Refuted Claims")[1].split("Supporting Evidence:")[0]
+    )
+    assert "claim-1" in rejected_section
+    assert "claim-0" not in rejected_section
