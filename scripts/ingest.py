@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 from app.retrieval.chunking import TextChunker
-from app.retrieval.embedder import Embedder
+from app.retrieval.embedder import get_embedder
 from app.core.config import settings
 import fitz
 import uuid
@@ -14,8 +14,10 @@ COLLECTION_NAME = "SCR2"
 client = QdrantClient(url=settings.qdrant_url)
 
 RAW_DIR = Path("data/raw")
+UPSERT_BATCH_SIZE = 256
 
-embedder = Embedder()
+# API sürecinde retriever ile aynı model örneği kullanılır (bellekte tek kopya).
+embedder = get_embedder()
 chunker = TextChunker(chunk_size=1500, chunk_overlap=200)
 
 
@@ -68,20 +70,20 @@ def ingest_documents(target_files=None) -> int:
     texts = [chunk.content for chunk in all_chunks]
     embedded_docs = embedder.embed(texts)
 
-    client.upsert(
-        collection_name=COLLECTION_NAME,
-        points=[
-            PointStruct(
-                id=uuid.uuid4().hex,
-                payload={
-                    "content": all_chunks[i].content,
-                    "source": all_chunks[i].source
-                },
-                vector=embedded_docs[i]
-            )
-            for i in range(len(all_chunks))
-        ]
-    )
+    points = [
+        PointStruct(
+            id=uuid.uuid4().hex,
+            payload={
+                "content": chunk.content,
+                "source": chunk.source
+            },
+            vector=vector
+        )
+        for chunk, vector in zip(all_chunks, embedded_docs)
+    ]
+    # Büyük dokümanlarda tek devasa istek yerine parça parça yükle
+    for i in range(0, len(points), UPSERT_BATCH_SIZE):
+        client.upsert(collection_name=COLLECTION_NAME, points=points[i:i + UPSERT_BATCH_SIZE])
     print(f"{len(all_chunks)} chunk Qdrant'a başarıyla yüklendi.")
     return len(all_chunks)
 

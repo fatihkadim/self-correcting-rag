@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     llm_max_retries: int = 3
     llm_max_tokens: int = 4096
 
+    # Claim doğrulama: paralel judge çağrısı ve claim başına kanıt sınırı
+    verify_max_workers: int = Field(default=5, ge=1)
+    max_evidence_per_claim: int = Field(default=5, ge=1)
+
     # API girdi sınırları
     max_upload_mb: int = Field(default=20, ge=1)
     min_question_length: int = 3

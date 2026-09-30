@@ -1,6 +1,6 @@
 from app.schemas.retrieval import RetrievalResult, Chunk
-from app.retrieval.embedder import Embedder
-from app.retrieval.reranker import Reranker
+from app.retrieval.embedder import get_embedder
+from app.retrieval.reranker import get_reranker
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 from app.core.config import settings
@@ -14,9 +14,9 @@ class RetrievalMode(str,Enum):
 
 class QdrantRetriever:
     def __init__(self):
-        self.embedder = Embedder()
+        self.embedder = get_embedder()
         self.client = QdrantClient(url=settings.qdrant_url)
-        self.reranker = Reranker()
+        self.reranker = get_reranker()
             
 
     def search(self,query:str,mode=RetrievalMode.HIGH_RECALL):
@@ -47,6 +47,10 @@ class QdrantRetriever:
         all_time = (time.time() - start) * 1000
 
         return RetrievalResult(query=query,chunks=reranked_chunks,retrieval_time=all_time)
+
+    def rank_texts(self, query: str, texts: list[str], top_k: int) -> list[str]:
+        """Verilen metinleri cross-encoder ile sorguya göre sıralayıp ilk top_k'yı döndürür."""
+        return self.reranker.rank_texts(query, texts, top_k)
 
 
 

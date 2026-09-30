@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
+import hashlib
 import re
 import time
 import os
@@ -58,6 +59,24 @@ def safe_filename(filename: str | None) -> str:
     return stem + ext
 
 
+def _file_sha256(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        while chunk := f.read(UPLOAD_READ_CHUNK):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _find_duplicate_content(digest: str) -> str | None:
+    """Aynı içeriğe sahip, daha önce yüklenmiş dosyanın adını döndürür."""
+    for name in os.listdir(RAW_DIR):
+        path = os.path.join(RAW_DIR, name)
+        if (os.path.splitext(name)[1].lower() in ALLOWED_EXTENSIONS and os.path.isfile(path)
+                and _file_sha256(path) == digest):
+            return name
+    return None
+
+
 def _validate_content(ext: str, head: bytes) -> None:
     """Dosya içeriğinin uzantısıyla uyumlu olduğunu kontrol eder."""
     if ext == ".pdf" and not head.startswith(b"%PDF-"):
@@ -103,6 +122,7 @@ def upload_document(file: UploadFile = File(...)):
     tmp_path = os.path.join(RAW_DIR, f".upload-{uuid.uuid4().hex}.part")
     try:
         size = 0
+        digest = hashlib.sha256()
         with open(tmp_path, "wb") as f:
             while chunk := file.file.read(UPLOAD_READ_CHUNK):
                 if size == 0:
@@ -113,9 +133,14 @@ def upload_document(file: UploadFile = File(...)):
                         status_code=413,
                         detail=f"Dosya boyutu {settings.max_upload_mb} MB sınırını aşıyor.",
                     )
+                digest.update(chunk)
                 f.write(chunk)
         if size == 0:
             raise HTTPException(status_code=400, detail="Dosya boş.")
+        # Farklı adla yüklenen aynı içerik de Qdrant'ta mükerrer chunk oluşturur.
+        duplicate = _find_duplicate_content(digest.hexdigest())
+        if duplicate:
+            raise HTTPException(status_code=409, detail=f"Bu içerik zaten {duplicate} olarak yüklü.")
         try:
             os.rename(tmp_path, file_path)
         except FileExistsError:

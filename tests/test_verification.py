@@ -150,3 +150,100 @@ def test_verification_engine_handles_broken_judge_output():
     assert result.verifications[0].status == VerificationStatus.UNKNOWN
     assert result.verifications[0].confidence == 0.0
     assert result.overall_confidence == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Test — kanıt sınırı ve paralel judge
+# ---------------------------------------------------------------------------
+
+class RankingRetriever:
+    """Claim'e özel 3 kanıt döndürür; rank_texts çağrılarını kaydeder."""
+
+    def __init__(self):
+        self.rank_calls = []
+
+    def search(self, query, mode=None):
+        return FakeResult(f"{query}-a", f"{query}-b", f"{query}-c")
+
+    def rank_texts(self, query, texts, top_k):
+        self.rank_calls.append((query, list(texts), top_k))
+        return list(reversed(texts))[:top_k]
+
+
+class RecordingJudge:
+    def __init__(self):
+        self.evidence_sizes = []
+
+    def judge(self, claim, evidence):
+        self.evidence_sizes.append(len(evidence))
+        return {"status": "supported", "confidence": 0.9, "reasoning": "ok"}
+
+
+def test_verification_caps_evidence_per_claim(monkeypatch):
+    """Claim'e özel + orijinal context'ler sınırı aşarsa en alakalı parçalar tutulur."""
+    from app.verification import verifier as verifier_module
+    monkeypatch.setattr(verifier_module.settings, "max_evidence_per_claim", 4)
+    retriever, judge = RankingRetriever(), RecordingJudge()
+    engine = VerificationEngine(retriever=retriever, judge=judge)
+
+    result = engine.verify_claims(
+        [Claim(claim="c1", type=ClaimType.FACTUAL)],
+        original_contexts=["ctx1", "ctx2", "ctx3", "c1-a"],  # "c1-a" tekrar eklenmez
+    )
+
+    assert judge.evidence_sizes == [4]
+    assert len(result.verifications[0].evidence) == 4
+    query, texts, top_k = retriever.rank_calls[0]
+    assert (query, top_k) == ("c1", 4)
+    assert texts == ["c1-a", "c1-b", "c1-c", "ctx1", "ctx2", "ctx3"]
+
+
+def test_verification_does_not_rank_when_under_limit():
+    retriever = RankingRetriever()
+    engine = VerificationEngine(retriever=retriever, judge=FakeJudge())
+
+    engine.verify_claims([Claim(claim="c1", type=ClaimType.FACTUAL)], original_contexts=["ctx1"])
+
+    assert retriever.rank_calls == []
+
+
+def test_verification_runs_judges_in_parallel_and_keeps_order():
+    """Judge çağrıları eşzamanlı çalışır; sonuçlar claim sırasını korur."""
+    import threading
+    import time
+
+    class SlowJudge:
+        def __init__(self):
+            self.active = 0
+            self.max_active = 0
+            self.lock = threading.Lock()
+
+        def judge(self, claim, evidence):
+            with self.lock:
+                self.active += 1
+                self.max_active = max(self.max_active, self.active)
+            # İlk claim en yavaş: sıra korunmasaydı sonuçlar karışırdı
+            time.sleep(0.2 if claim == "claim-0" else 0.05)
+            with self.lock:
+                self.active -= 1
+            status = "refuted" if claim == "claim-0" else "supported"
+            return {"status": status, "confidence": 0.8, "reasoning": claim}
+
+    judge = SlowJudge()
+    engine = VerificationEngine(retriever=FakeRetriever(), judge=judge)
+    claims = [Claim(claim=f"claim-{i}", type=ClaimType.FACTUAL) for i in range(4)]
+
+    result = engine.verify_claims(claims)
+
+    assert judge.max_active > 1
+    assert [v.claim for v in result.verifications] == [c.claim for c in claims]
+    assert [v.reasoning for v in result.verifications] == [c.claim for c in claims]
+    assert result.verifications[0].status == VerificationStatus.REFUTED
+    assert result.refuted_counts == 1 and result.supported_counts == 3
+
+
+def test_verification_with_no_claims():
+    engine = VerificationEngine(retriever=FakeRetriever(), judge=FakeJudge())
+    result = engine.verify_claims([])
+    assert result.total_claims == 0
+    assert result.verifications == []

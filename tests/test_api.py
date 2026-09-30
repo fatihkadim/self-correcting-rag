@@ -227,3 +227,16 @@ def test_upload_ingest_error_returns_500_without_details(upload_env):
     assert response.status_code == 500
     assert "qdrant-bağlantı-detayı" not in response.text
     assert list(raw_dir.iterdir()) == []
+
+
+def test_upload_rejects_same_content_under_different_name(upload_env):
+    """Aynı içerik farklı adla yüklenirse 409 döner, ingest çağrılmaz."""
+    raw_dir, fake_ingest = upload_env
+    (raw_dir / "orijinal.pdf").write_bytes(PDF_BYTES)
+
+    response = _upload("kopya.pdf", PDF_BYTES)
+
+    assert response.status_code == 409
+    assert "orijinal.pdf" in response.json()["detail"]
+    assert sorted(p.name for p in raw_dir.iterdir()) == ["orijinal.pdf"]
+    fake_ingest.assert_not_called()
