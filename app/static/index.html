@@ -9,8 +9,14 @@
     <!-- Google Fonts: Outfit & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Marked.js for Markdown parsing -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Marked.js for Markdown parsing + DOMPurify for sanitizing its HTML output.
+         Sürümler sabit ve SRI ile doğrulanıyor; güncellerken hash'leri de yenileyin. -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"
+        integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js"
+        integrity="sha384-a7SzOxErzJ3ZpQz0zJ32d67dSitNzPcbfybc/ykU9KJhMgZkwqfSxlhhdJRS+XGL"
+        crossorigin="anonymous"></script>
     <!-- MathJax for LaTeX parsing -->
     <script>
         window.MathJax = {
@@ -23,7 +29,9 @@
             }
         };
     </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"
+        integrity="sha384-Wuix6BuhrWbjDBs24bXrjf4ZQ5aFeFWBuKkFekO2t8xFU0iNaLQfp2K6/1Nxveei"
+        crossorigin="anonymous"></script>
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
@@ -949,7 +957,7 @@
                 </div>
                 <div class="query-form">
                     <div class="textarea-container">
-                        <textarea id="query-input"
+                        <textarea id="query-input" maxlength="1000"
                             placeholder="Örn: How does LoRA reduce trainable parameters during fine-tuning?"></textarea>
                     </div>
                     <button id="submit-btn" class="btn-submit" onclick="submitQuery()">
@@ -985,9 +993,9 @@
                             <line x1="12" y1="18" x2="12" y2="12"></line>
                             <line x1="9" y1="15" x2="15" y2="15"></line>
                         </svg>
-                        <div style="font-size: 13px; color: var(--color-text-muted);" id="upload-text">PDF dosyasını
+                        <div style="font-size: 13px; color: var(--color-text-muted);" id="upload-text">PDF veya TXT dosyası
                             seçmek için tıklayın</div>
-                        <input type="file" id="file-upload" accept=".pdf" style="display: none;"
+                        <input type="file" id="file-upload" accept=".pdf,.txt" style="display: none;"
                             onchange="handleFileSelect(event)">
                     </div>
                     <button id="upload-btn" class="btn-submit" onclick="uploadFile()" disabled
@@ -1193,6 +1201,35 @@
     </main>
 
     <script>
+        const MAX_UPLOAD_MB = 20;
+        const ALLOWED_UPLOAD_EXTENSIONS = ['.pdf', '.txt'];
+
+        // Sunucudan / LLM'den gelen metin innerHTML'e asla ham olarak yazılmaz.
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderMarkdown(text) {
+            return DOMPurify.sanitize(marked.parse(text || ''));
+        }
+
+        // FastAPI hata gövdesinden okunabilir mesaj çıkarır (HTTPException veya 422 doğrulama hatası).
+        async function readErrorMessage(response, fallback) {
+            try {
+                const body = await response.json();
+                if (typeof body.detail === 'string') return body.detail;
+                if (Array.isArray(body.detail) && body.detail.length > 0) {
+                    return body.detail.map(d => d.msg).join(', ');
+                }
+            } catch (_) { /* JSON olmayan gövde */ }
+            return fallback;
+        }
+
         let selectedFile = null;
 
         function handleFileSelect(event) {
@@ -1201,7 +1238,11 @@
             const uploadText = document.getElementById('upload-text');
             const uploadBtn = document.getElementById('upload-btn');
 
-            if (file && file.name.toLowerCase().endsWith('.pdf')) {
+            const name = file ? file.name.toLowerCase() : '';
+            const validType = ALLOWED_UPLOAD_EXTENSIONS.some(ext => name.endsWith(ext));
+            const validSize = file && file.size <= MAX_UPLOAD_MB * 1024 * 1024;
+
+            if (file && validType && validSize) {
                 selectedFile = file;
                 uploadText.textContent = file.name;
                 uploadText.style.color = "var(--color-text-main)";
@@ -1210,7 +1251,9 @@
                 uploadBtn.disabled = false;
             } else {
                 selectedFile = null;
-                uploadText.textContent = "Geçersiz dosya. Lütfen PDF seçin.";
+                uploadText.textContent = file && validType
+                    ? `Dosya ${MAX_UPLOAD_MB} MB sınırını aşıyor.`
+                    : "Geçersiz dosya. Lütfen PDF veya TXT seçin.";
                 uploadText.style.color = "var(--color-error)";
                 dropzone.style.borderColor = "var(--color-error)";
                 dropzone.style.background = "var(--color-error-bg)";
@@ -1238,6 +1281,9 @@
                     method: 'POST',
                     body: formData
                 });
+                if (!response.ok) {
+                    throw new Error(await readErrorMessage(response, 'Bilinmeyen bir hata oluştu'));
+                }
                 const result = await response.json();
 
                 if (result.status === 'success') {
@@ -1248,7 +1294,7 @@
                     setTimeout(() => {
                         document.getElementById('file-upload').value = '';
                         selectedFile = null;
-                        document.getElementById('upload-text').textContent = "PDF dosyasını seçmek için tıklayın";
+                        document.getElementById('upload-text').textContent = "PDF veya TXT dosyası seçmek için tıklayın";
                         document.getElementById('upload-text').style.color = "var(--color-text-muted)";
                         const dropzone = document.getElementById('upload-dropzone');
                         dropzone.style.borderColor = "var(--card-border)";
@@ -1282,7 +1328,7 @@
                         item.className = 'file-list-item';
                         item.innerHTML = `
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                            ${file}
+                            ${escapeHtml(file)}
                         `;
                         listContainer.appendChild(item);
                     });
@@ -1363,7 +1409,9 @@
                     body: JSON.stringify({ question: question })
                 });
 
-                if (!response.ok) throw new Error('API isteği başarısız oldu.');
+                if (!response.ok) {
+                    throw new Error(await readErrorMessage(response, 'API isteği başarısız oldu.'));
+                }
 
                 const data = await response.json();
 
@@ -1408,7 +1456,7 @@
             document.getElementById('metric-confidence').textContent = (v.overall_confidence || 0).toFixed(2);
 
             // Final answer
-            document.getElementById('final-answer').innerHTML = marked.parse(data.answer || "");
+            document.getElementById('final-answer').innerHTML = renderMarkdown(data.answer);
 
             // Claims breakdown & Repair logic
             const claimsContainer = document.getElementById('claims-container');
@@ -1425,7 +1473,7 @@
                 // Original draft would have the unsupported claims. Let's list the claims as initial draft elements:
                 const allClaimsList = verifications.map((item, idx) => `[${idx + 1}] ${item.claim}`).join('\n');
                 document.getElementById('original-draft').textContent = allClaimsList;
-                document.getElementById('repaired-draft').innerHTML = marked.parse(data.answer || "");
+                document.getElementById('repaired-draft').innerHTML = renderMarkdown(data.answer);
             } else {
                 repairPanel.style.display = 'none';
             }
@@ -1459,7 +1507,7 @@
                             <div class="claim-status-badge ${statusClass}">
                                 ${iconSvg}
                             </div>
-                            <div class="claim-text">${item.claim}</div>
+                            <div class="claim-text">${escapeHtml(item.claim)}</div>
                         </div>
                         <div class="claim-meta">
                             <span class="claim-type-pill">${friendlyStatus}</span>
@@ -1472,12 +1520,12 @@
                     detailPane.className = 'claim-detail-pane';
                     detailPane.id = `claim-detail-${index}`;
 
-                    const evidenceHtml = (item.evidence || []).map(ev => `<div class="evidence-item">${ev}</div>`).join('') || '<div class="evidence-item">Kanıt bulunamadı.</div>';
+                    const evidenceHtml = (item.evidence || []).map(ev => `<div class="evidence-item">${escapeHtml(ev)}</div>`).join('') || '<div class="evidence-item">Kanıt bulunamadı.</div>';
 
                     detailPane.innerHTML = `
                         <div class="reasoning-box">
                             <strong>Karar Gerekçesi (Reasoning):</strong><br>
-                            ${item.reasoning || 'Gerekçe belirtilmemiş.'}
+                            ${escapeHtml(item.reasoning || 'Gerekçe belirtilmemiş.')}
                         </div>
                         <div class="evidence-list">
                             <span class="evidence-title">Toplanan Kanıtlar (Evidence Check)</span>
@@ -1505,11 +1553,11 @@
                         <div class="source-header">
                             <span class="source-name">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                ${src.source || 'Bilinmeyen Dosya'}
+                                ${escapeHtml(src.source || 'Bilinmeyen Dosya')}
                             </span>
-                            <span class="source-id-badge">ID: ${src.id ? src.id.substring(0, 8) : 'N/A'}</span>
+                            <span class="source-id-badge">ID: ${src.id ? escapeHtml(String(src.id).substring(0, 8)) : 'N/A'}</span>
                         </div>
-                        <div class="source-body">${src.content}</div>
+                        <div class="source-body">${escapeHtml(src.content)}</div>
                     `;
                     sourcesContainer.appendChild(card);
                 });

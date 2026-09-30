@@ -195,6 +195,24 @@ def test_controller_retry_exhausted_returns_no_answer():
     assert ctrl.query_rewriter.rewrite.call_count == max_retry - 1
 
 
+def test_controller_retry_exhausted_with_no_claims_returns_model_no_answer():
+    """Tüm denemelerde kaynaklarda cevap yoksa modelin (sorunun dilindeki)
+    cevabı NO_ANSWER statüsüyle döner, sabit İngilizce mesaj değil."""
+    ctrl = _make_controller()
+    ctrl.answer_generator.generate.return_value = "Kaynaklarda bu sorunun cevabı yok."
+    ctrl.claim_extractor.extract.return_value = _claims_result([])
+    ctrl.verifier.verify_claims.return_value = _verification_result([])
+    ctrl.decider.decide.return_value = Decisions.RETRY
+    ctrl.query_rewriter.rewrite.return_value = "Rewritten question"
+
+    response = _run(ctrl, "Bitcoin nedir?", max_retry=2)
+
+    assert response.answer == "Kaynaklarda bu sorunun cevabı yok."
+    assert response.status == AnswerStatus.NO_ANSWER
+    assert response.claims == []
+    assert response.attempts == 2
+
+
 def test_controller_retry_uses_rewritten_query_for_retrieval():
     ctrl = _make_controller()
     ctrl.answer_generator.generate.return_value = "Cevap."

@@ -16,8 +16,10 @@ class PolicyEngine():
     
     def decide(self,result: VerificationResult) -> Decisions:
         
+        # Doğrulanabilir iddia yok (ör. "kaynaklarda cevap yok"): farklı bir
+        # sorguyla tekrar dene; kabul edilirse "verified" olarak işaretlenirdi.
         if result.total_claims == 0:
-            return Decisions.ACCEPT
+            return Decisions.RETRY
         elif result.supported_counts == result.total_claims:
             return Decisions.ACCEPT
         

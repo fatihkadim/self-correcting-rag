@@ -19,7 +19,8 @@ embedder = Embedder()
 chunker = TextChunker(chunk_size=1500, chunk_overlap=200)
 
 
-def ingest_documents(target_files=None):
+def ingest_documents(target_files=None) -> int:
+    """Dosyaları chunk'layıp Qdrant'a yükler; yüklenen chunk sayısını döndürür."""
     if target_files is None:
         txt_files = list(RAW_DIR.glob("*.txt"))
         pdf_files = list(RAW_DIR.glob("*.pdf"))
@@ -27,7 +28,7 @@ def ingest_documents(target_files=None):
 
     if not target_files:
         print("data/raw/ içinde .txt veya .pdf dosyası bulunamadı!")
-        return
+        return 0
 
     if not client.collection_exists(COLLECTION_NAME):
         client.create_collection(
@@ -62,7 +63,7 @@ def ingest_documents(target_files=None):
 
     if not all_chunks:
         print("Çıkarılabilir metin bulunamadı!")
-        return
+        return 0
 
     texts = [chunk.content for chunk in all_chunks]
     embedded_docs = embedder.embed(texts)
@@ -82,6 +83,7 @@ def ingest_documents(target_files=None):
         ]
     )
     print(f"{len(all_chunks)} chunk Qdrant'a başarıyla yüklendi.")
+    return len(all_chunks)
 
 
 if __name__ == "__main__":

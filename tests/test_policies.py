@@ -68,10 +68,10 @@ def test_accept_when_all_claims_supported():
     assert engine.decide(result) == Decisions.ACCEPT
 
 
-def test_accept_when_zero_claims():
-    """Hiç claim yoksa → ACCEPT (boş sonuç)."""
+def test_retry_when_zero_claims():
+    """Hiç claim yoksa (ör. "kaynaklarda cevap yok") → RETRY, verified sayılmaz."""
     result = _make_result()  # 0 claim
-    assert engine.decide(result) == Decisions.ACCEPT
+    assert engine.decide(result) == Decisions.RETRY
 
 
 # ---------------------------------------------------------------------------

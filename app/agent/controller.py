@@ -120,6 +120,15 @@ class SelfCorrectionController():
             return self._response(best.answer, best.retrieval, best.claims, best.verification,
                                   AnswerStatus.PARTIALLY_VERIFIED, attempts)
 
+        # İddia içermeyen cevap (ör. "kaynaklarda cevap yok") sorunun dilinde
+        # yazıldığı için sabit mesaja tercih edilir; doğrulanacak iddiası yoktur.
+        no_claims = [c for c in candidates if c.verification.total_claims == 0]
+        if no_claims:
+            c = no_claims[-1]
+            logger.warning("Deneme hakları bitti; kaynaklarda cevap bulunamadı.")
+            return self._response(c.answer, c.retrieval, c.claims, c.verification,
+                                  AnswerStatus.NO_ANSWER, attempts)
+
         logger.warning("Deneme hakları bitti; güvenilir cevap bulunamadı.")
         return self._response(NO_ANSWER_MESSAGE, last_retrieval, None, None,
                               AnswerStatus.NO_ANSWER, attempts)

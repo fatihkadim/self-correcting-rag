@@ -1,5 +1,7 @@
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
+
+from app.core.config import settings
 
 
 class AnswerStatus(str, Enum):
@@ -11,7 +13,16 @@ class AnswerStatus(str, Enum):
 
 
 class QueryRequest(BaseModel):
-    question: str
+    question: str = Field(
+        min_length=settings.min_question_length,
+        max_length=settings.max_question_length,
+    )
+
+    @field_validator("question", mode="before")
+    @classmethod
+    def strip_question(cls, v):
+        # Sadece boşluktan oluşan sorular min_length kontrolüne takılsın
+        return v.strip() if isinstance(v, str) else v
 
 
 class QueryResponse(BaseModel):
