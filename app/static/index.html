@@ -573,6 +573,65 @@
             white-space: pre-wrap;
         }
 
+        /* Cevap doğrulama durumu (QueryResponse.status) */
+        .answer-status {
+            --status-color: var(--color-text-muted);
+            --status-bg: rgba(255, 255, 255, 0.03);
+            --status-border: var(--card-border);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--status-border);
+            background: var(--status-bg);
+        }
+
+        .answer-status.success {
+            --status-color: var(--color-success);
+            --status-bg: var(--color-success-bg);
+            --status-border: var(--color-success-border);
+        }
+
+        .answer-status.warning {
+            --status-color: var(--color-warning);
+            --status-bg: var(--color-warning-bg);
+            --status-border: var(--color-warning-border);
+        }
+
+        .answer-status.error {
+            --status-color: var(--color-error);
+            --status-bg: var(--color-error-bg);
+            --status-border: var(--color-error-border);
+        }
+
+        .answer-status-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .answer-status-badge {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--status-color);
+        }
+
+        .answer-status-attempts {
+            font-size: 11px;
+            color: var(--color-text-muted);
+        }
+
+        .answer-status-desc {
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--color-text-main);
+        }
+
         .repair-comparison {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -1132,8 +1191,15 @@
                             stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                         </svg>
-                        Nihai Güvenli Cevap
+                        Nihai Cevap
                     </h3>
+                    <div class="answer-status" id="answer-status" style="display: none;">
+                        <div class="answer-status-head">
+                            <span class="answer-status-badge" id="answer-status-label"></span>
+                            <span class="answer-status-attempts" id="answer-status-attempts"></span>
+                        </div>
+                        <p class="answer-status-desc" id="answer-status-desc"></p>
+                    </div>
                     <div class="answer-bubble" id="final-answer">
                         Cevap yükleniyor...
                     </div>
@@ -1456,6 +1522,7 @@
             document.getElementById('metric-confidence').textContent = (v.overall_confidence || 0).toFixed(2);
 
             // Final answer
+            renderAnswerStatus(data.status, data.attempts);
             document.getElementById('final-answer').innerHTML = renderMarkdown(data.answer);
 
             // Claims breakdown & Repair logic
@@ -1567,6 +1634,50 @@
             if (window.MathJax) {
                 window.MathJax.typesetPromise().catch((err) => console.log(err.message));
             }
+        }
+
+        // QueryResponse.status → kullanıcıya gösterilen doğrulama durumu
+        const ANSWER_STATUS = {
+            verified: {
+                tone: 'success',
+                label: 'Doğrulandı',
+                desc: 'Cevaptaki iddialar kaynaklarla doğrulandı.'
+            },
+            repaired: {
+                tone: 'success',
+                label: 'Onarıldı ve doğrulandı',
+                desc: 'Desteklenmeyen iddialar çıkarıldı; onarılan cevap yeniden doğrulandı.'
+            },
+            partially_verified: {
+                tone: 'warning',
+                label: 'Kısmen doğrulandı',
+                desc: 'Çürütülmüş iddia yok, ancak bazı iddialar kaynaklarla doğrulanamadı. Dikkatli kullanın.'
+            },
+            unverified: {
+                tone: 'error',
+                label: 'Doğrulanmadı',
+                desc: 'Cevaptan iddia çıkarılamadığı için doğrulama yapılamadı. Kaynaklarla kontrol edin.'
+            },
+            no_answer: {
+                tone: 'neutral',
+                label: 'Güvenilir cevap bulunamadı',
+                desc: 'Yüklenen kaynaklarda bu soruya güvenilir bir cevap bulunamadı.'
+            }
+        };
+
+        function renderAnswerStatus(status, attempts) {
+            const info = ANSWER_STATUS[status] || {
+                tone: 'neutral',
+                label: 'Durum bilinmiyor',
+                desc: 'Cevabın doğrulama durumu alınamadı.'
+            };
+            const box = document.getElementById('answer-status');
+            box.className = `answer-status ${info.tone}`;
+            document.getElementById('answer-status-label').textContent = info.label;
+            document.getElementById('answer-status-desc').textContent = info.desc;
+            document.getElementById('answer-status-attempts').textContent =
+                Number.isInteger(attempts) ? `${attempts} deneme` : '';
+            box.style.display = 'flex';
         }
 
         function toggleClaimDetail(index) {

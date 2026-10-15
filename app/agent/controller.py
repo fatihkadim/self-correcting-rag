@@ -6,7 +6,7 @@ from app.verification.verifier import VerificationEngine
 from app.claims.extractor import ClaimExtractor
 from app.retrieval.retriever import QdrantRetriever
 from app.generation.answer import AnswerGenerator
-from app.generation.llm import LLMClient
+from app.generation.llm import LLMClient, LLMError
 from app.core.config import settings
 from app.schemas.claims import ClaimExtractionResult
 from app.schemas.query import QueryRequest, QueryResponse, AnswerStatus
@@ -41,14 +41,26 @@ class SelfCorrectionController():
     def run(self, request: QueryRequest) -> QueryResponse:
         question = request.question
         max_attempts = max(1, settings.max_retry)
-        search_query = question
         candidates: list[_Candidate] = []
         retrieval_result: RetrievalResult | None = None
+        llm_error: LLMError | None = None
 
         for attempt in range(1, max_attempts + 1):
+            if attempt == 1:
+                search_query = question
+            else:
+                logger.info("Cevap kabul edilmedi, soru yeniden yazılarak tekrar deneniyor...")
+                search_query = self.query_rewriter.rewrite(question, attempt - 1)
+
             retrieval_result = self.retriever.search(search_query)
             contexts = [chunk.content for chunk in retrieval_result.chunks]
-            answer = self.answer_generator.generate(question, retrieval_result)
+            try:
+                answer = self.answer_generator.generate(question, retrieval_result)
+            except LLMError as e:
+                # Önceki denemelerin adayları korunur; deneme başarısız sayılır.
+                logger.warning("attempt=%d cevap üretilemedi: %s", attempt, e)
+                llm_error = e
+                continue
 
             claims_result, verification_result = self._verify(answer, contexts)
             if claims_result is None:
@@ -64,24 +76,43 @@ class SelfCorrectionController():
                                       AnswerStatus.VERIFIED, attempt)
 
             if decision == Decisions.REPAIR:
-                repaired = self.answer_repair.repair(question, verification_result, original_answer=answer)
-                # Onarılan cevap da doğrulanır; kullanıcıya gösterilen metin ile
-                # döndürülen doğrulama sonucu her zaman aynı cevaba ait olur.
-                r_claims, r_verification = self._verify(repaired, contexts)
-                if r_claims is not None and self._is_acceptable_repair(r_verification):
-                    return self._response(repaired, retrieval_result, r_claims, r_verification,
-                                          AnswerStatus.REPAIRED, attempt)
-                logger.warning("Onarılan cevap doğrulamadan geçemedi.")
-                if r_claims is not None:
-                    candidates.append(_Candidate(repaired, retrieval_result, r_claims, r_verification))
+                response = self._try_repair(question, answer, verification_result, contexts,
+                                            retrieval_result, attempt, candidates)
+                if response is not None:
+                    return response
 
             candidates.append(_Candidate(answer, retrieval_result, claims_result, verification_result))
 
-            if attempt < max_attempts:
-                logger.info("Cevap kabul edilmedi, soru yeniden yazılarak tekrar deneniyor...")
-                search_query = self.query_rewriter.rewrite(question, attempt)
-
+        if not candidates and llm_error is not None:
+            # Hiçbir denemede cevap üretilemedi: "güvenilir cevap yok" demek
+            # yanıltıcı olur, hata API katmanına iletilir.
+            raise llm_error
         return self._fallback(candidates, retrieval_result, max_attempts)
+
+    def _try_repair(self, question: str, answer: str, verification_result: VerificationResult,
+                    contexts: list[str], retrieval_result: RetrievalResult, attempt: int,
+                    candidates: list[_Candidate]) -> QueryResponse | None:
+        """Cevabı onarıp yeniden doğrular; kabul edilebilirse yanıtı döndürür.
+
+        Onarım başarısızsa (LLM hatası dahil) None döner; doğrulanabilen
+        onarılmış cevap fallback adayı olarak eklenir.
+        """
+        try:
+            repaired = self.answer_repair.repair(question, verification_result, original_answer=answer)
+        except LLMError as e:
+            logger.warning("attempt=%d cevap onarılamadı: %s", attempt, e)
+            return None
+
+        # Onarılan cevap da doğrulanır; kullanıcıya gösterilen metin ile
+        # döndürülen doğrulama sonucu her zaman aynı cevaba ait olur.
+        r_claims, r_verification = self._verify(repaired, contexts)
+        if r_claims is not None and self._is_acceptable_repair(r_verification):
+            return self._response(repaired, retrieval_result, r_claims, r_verification,
+                                  AnswerStatus.REPAIRED, attempt)
+        logger.warning("Onarılan cevap doğrulamadan geçemedi.")
+        if r_claims is not None:
+            candidates.append(_Candidate(repaired, retrieval_result, r_claims, r_verification))
+        return None
 
     def _verify(self, answer: str, contexts: list[str]
                 ) -> tuple[ClaimExtractionResult | None, VerificationResult | None]:

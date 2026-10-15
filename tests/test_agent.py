@@ -1,7 +1,10 @@
 from unittest.mock import patch, MagicMock
 
+import pytest
+
 from app.agent.controller import SelfCorrectionController
 from app.agent.policies import Decisions
+from app.generation.llm import LLMError
 from app.generation.repair import NO_ANSWER_MESSAGE
 from app.schemas.claims import Claim, ClaimType, ClaimExtractionResult
 from app.schemas.query import QueryRequest, QueryResponse, AnswerStatus
@@ -278,3 +281,70 @@ def test_controller_extraction_failure_marks_unverified():
     assert response.verification is None
     ctrl.verifier.verify_claims.assert_not_called()
     ctrl.decider.decide.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Test 5 — LLM hataları sorguyu düşürmez
+# ---------------------------------------------------------------------------
+
+def test_controller_repair_llm_error_keeps_candidates():
+    """Onarım LLM hatası verirse önceki güvenli aday korunur, 500 dönmez."""
+    ctrl = _make_controller()
+    ctrl.answer_generator.generate.side_effect = ["Kısmen doğrulanmış", "Cevap 2"]
+    ctrl.claim_extractor.extract.return_value = _claims_result()
+    ctrl.verifier.verify_claims.side_effect = [
+        _verification_result([S, U]),  # cevap 1 (onarım başarısız)
+        _verification_result([S, R]),  # cevap 2 (onarım başarısız)
+    ]
+    ctrl.decider.decide.return_value = Decisions.REPAIR
+    ctrl.answer_repair.repair.side_effect = LLMError("timeout")
+    ctrl.query_rewriter.rewrite.return_value = "q2"
+
+    response = _run(ctrl, "Soru?", max_retry=2)
+
+    assert response.answer == "Kısmen doğrulanmış"
+    assert response.status == AnswerStatus.PARTIALLY_VERIFIED
+    assert ctrl.answer_repair.repair.call_count == 2
+
+
+def test_controller_generation_llm_error_retries_next_attempt():
+    """Cevap üretimi bir denemede hata verirse sonraki denemeye geçilir."""
+    ctrl = _make_controller()
+    ctrl.answer_generator.generate.side_effect = [LLMError("overloaded"), "Cevap 2"]
+    ctrl.claim_extractor.extract.return_value = _claims_result()
+    ctrl.verifier.verify_claims.return_value = _verification_result()
+    ctrl.decider.decide.return_value = Decisions.ACCEPT
+    ctrl.query_rewriter.rewrite.return_value = "q2"
+
+    response = _run(ctrl, "Soru?", max_retry=2)
+
+    assert response.answer == "Cevap 2"
+    assert response.status == AnswerStatus.VERIFIED
+    assert response.attempts == 2
+    ctrl.query_rewriter.rewrite.assert_called_once_with("Soru?", 1)
+
+
+def test_controller_generation_llm_error_keeps_earlier_candidate():
+    """Son denemede cevap üretilemezse önceki denemenin güvenli adayı döner."""
+    ctrl = _make_controller()
+    ctrl.answer_generator.generate.side_effect = ["Kısmen doğrulanmış", LLMError("timeout")]
+    ctrl.claim_extractor.extract.return_value = _claims_result()
+    ctrl.verifier.verify_claims.return_value = _verification_result([S, U])
+    ctrl.decider.decide.return_value = Decisions.RETRY
+    ctrl.query_rewriter.rewrite.return_value = "q2"
+
+    response = _run(ctrl, "Soru?", max_retry=2)
+
+    assert response.answer == "Kısmen doğrulanmış"
+    assert response.status == AnswerStatus.PARTIALLY_VERIFIED
+
+
+def test_controller_all_generation_failures_raise():
+    """Hiçbir denemede cevap üretilemezse 'cevap yok' yerine hata yükseltilir."""
+    ctrl = _make_controller()
+    ctrl.answer_generator.generate.side_effect = LLMError("down")
+    ctrl.query_rewriter.rewrite.return_value = "q2"
+
+    with pytest.raises(LLMError):
+        _run(ctrl, "Soru?", max_retry=2)
+    ctrl.claim_extractor.extract.assert_not_called()
