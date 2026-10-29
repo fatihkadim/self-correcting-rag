@@ -87,7 +87,8 @@ def _validate_content(ext: str, head: bytes) -> None:
 
 @app.get("/")
 def read_root():
-    return FileResponse(os.path.join(static_dir, "index.html"))
+    # Arayüz güncellendiğinde tarayıcı eski sayfayı önbellekten göstermesin
+    return FileResponse(os.path.join(static_dir, "index.html"), headers={"Cache-Control": "no-cache"})
 
 @app.get("/health")
 def check_health():

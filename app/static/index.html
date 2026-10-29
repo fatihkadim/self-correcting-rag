@@ -4,11 +4,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Self-Correcting RAG Workspace</title>
-    <link rel="icon" type="image/png" href="assets/logo.png">
-    <!-- Google Fonts: Outfit & Inter -->
+    <title>Self-Correcting RAG</title>
+    <!-- Logo ile aynı işaret: atıf parantezi + doğrulama tiki; sekme temasına göre renk değişir -->
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28' fill='none' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cstyle%3E.b%7Bstroke:%231c1b19%7D.c%7Bstroke:%231d6b58%7D@media (prefers-color-scheme:dark)%7B.b%7Bstroke:%23ebeae6%7D.c%7Bstroke:%235dbb9b%7D%7D%3C/style%3E%3Cpath class='b' d='M10 5H6v18h4M18 5h4v18h-4'/%3E%3Cpath class='c' d='M10.5 14.5l2.75 2.75L18 11.5'/%3E%3C/svg%3E">
+    <!-- Kayıtlı tema, ilk boyamadan önce uygulanır (yanıp sönmeyi önler) -->
+    <script>
+        try {
+            const savedTheme = localStorage.getItem('scr.theme');
+            if (savedTheme === 'light' || savedTheme === 'dark') document.documentElement.dataset.theme = savedTheme;
+        } catch (_) { /* depolama kapalı: sistem teması kullanılır */ }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:wght@400;600&display=swap"
+        rel="stylesheet">
     <!-- Marked.js for Markdown parsing + DOMPurify for sanitizing its HTML output.
          Sürümler sabit ve SRI ile doğrulanıyor; güncellerken hash'leri de yenileyin. -->
     <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"
@@ -17,7 +28,7 @@
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js"
         integrity="sha384-a7SzOxErzJ3ZpQz0zJ32d67dSitNzPcbfybc/ykU9KJhMgZkwqfSxlhhdJRS+XGL"
         crossorigin="anonymous"></script>
-    <!-- MathJax for LaTeX parsing -->
+    <!-- MathJax: sayfa açılışında tüm belgeyi taramaz, yalnızca cevaplar dizilir -->
     <script>
         window.MathJax = {
             tex: {
@@ -26,1249 +37,1452 @@
             },
             svg: {
                 fontCache: 'global'
+            },
+            startup: {
+                typeset: false,
+                ready() {
+                    MathJax.startup.defaultReady();
+                    MathJax.startup.promise.then(() => {
+                        if (window.typesetMath) window.typesetMath(document.querySelectorAll('.answer'));
+                    });
+                }
             }
         };
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"
         integrity="sha384-Wuix6BuhrWbjDBs24bXrjf4ZQ5aFeFWBuKkFekO2t8xFU0iNaLQfp2K6/1Nxveei"
         crossorigin="anonymous"></script>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
 
     <style>
         :root {
-            --bg-color: #080c14;
-            --card-bg: rgba(16, 24, 48, 0.45);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --primary-glow: rgba(99, 102, 241, 0.15);
+            --bg: #f6f5f2;
+            --surface: #ffffff;
+            --surface-sunk: #efeee9;
+            --hover: rgba(28, 27, 25, 0.05);
+            --selected: rgba(28, 27, 25, 0.08);
+            --border: #e2e0da;
+            --border-strong: #cdcac2;
 
-            --color-text-main: #f3f4f6;
-            --color-text-muted: #9ca3af;
+            --text: #1c1b19;
+            --text-2: #57554f;
+            --text-3: #706d66;
 
-            --color-primary: #6366f1;
-            --color-primary-hover: #4f46e5;
-            --color-secondary: #a855f7;
+            --accent: #1d6b58;
+            --accent-hover: #175747;
+            --on-accent: #ffffff;
+            --accent-soft: #e2efe9;
+            --accent-text: #155040;
 
-            --color-success: #10b981;
-            --color-success-bg: rgba(16, 185, 129, 0.1);
-            --color-success-border: rgba(16, 185, 129, 0.25);
+            --ok: #2c7a4b;
+            --warn: #93580a;
+            --danger: #b23a30;
+            --danger-soft: #fae7e4;
 
-            --color-error: #ef4444;
-            --color-error-bg: rgba(239, 68, 68, 0.1);
-            --color-error-border: rgba(239, 68, 68, 0.25);
+            --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            --font-read: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+            --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
-            --color-warning: #f59e0b;
-            --color-warning-bg: rgba(245, 158, 11, 0.1);
-            --color-warning-border: rgba(245, 158, 11, 0.25);
+            --radius: 8px;
+            --sidebar-w: 264px;
+            --sources-w: 380px;
+            --content-w: 740px;
+            color-scheme: light;
         }
 
-        * {
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg: #171715;
+                --surface: #1f1f1c;
+                --surface-sunk: #1b1b19;
+                --hover: rgba(235, 234, 230, 0.06);
+                --selected: rgba(235, 234, 230, 0.1);
+                --border: #2f2e2b;
+                --border-strong: #46443f;
+                --text: #ebeae6;
+                --text-2: #b3b1aa;
+                --text-3: #8f8d86;
+                --accent: #5dbb9b;
+                --accent-hover: #74c9ab;
+                --on-accent: #0f2b22;
+                --accent-soft: #1c362d;
+                --accent-text: #8fd6bb;
+                --ok: #72c495;
+                --warn: #e3ac52;
+                --danger: #ef8a80;
+                --danger-soft: #3b201d;
+                color-scheme: dark;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            --bg: #171715;
+            --surface: #1f1f1c;
+            --surface-sunk: #1b1b19;
+            --hover: rgba(235, 234, 230, 0.06);
+            --selected: rgba(235, 234, 230, 0.1);
+            --border: #2f2e2b;
+            --border-strong: #46443f;
+            --text: #ebeae6;
+            --text-2: #b3b1aa;
+            --text-3: #8f8d86;
+            --accent: #5dbb9b;
+            --accent-hover: #74c9ab;
+            --on-accent: #0f2b22;
+            --accent-soft: #1c362d;
+            --accent-text: #8fd6bb;
+            --ok: #72c495;
+            --warn: #e3ac52;
+            --danger: #ef8a80;
+            --danger-soft: #3b201d;
+            color-scheme: dark;
+        }
+
+        *,
+        *::before,
+        *::after {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            scrollbar-width: thin;
-            scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
         }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+        [hidden] {
+            display: none !important;
         }
 
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.2);
+        html,
+        body {
+            height: 100%;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--color-text-main);
-            min-height: 100vh;
-            overflow-x: hidden;
-            background-image:
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.1) 0px, transparent 50%);
-            background-attachment: fixed;
+            margin: 0;
+            font-family: var(--font-ui);
+            font-size: 15px;
+            line-height: 1.5;
+            color: var(--text);
+            background: var(--bg);
+            -webkit-font-smoothing: antialiased;
         }
 
-        h1,
-        h2,
-        h3,
-        h4 {
-            font-family: 'Outfit', sans-serif;
-            font-weight: 600;
+        button,
+        input,
+        textarea {
+            font: inherit;
+            color: inherit;
         }
 
-        header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 20px 40px;
-            border-bottom: 1px solid var(--card-border);
-            background: rgba(8, 12, 20, 0.8);
-            backdrop-filter: blur(12px);
-            position: sticky;
-            top: 0;
-            z-index: 100;
+        button {
+            cursor: pointer;
         }
 
-        .logo-container {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
         }
 
-        .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
-            font-size: 20px;
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
 
-        .logo-text h1 {
-            font-size: 20px;
-            background: linear-gradient(to right, #ffffff, #c084fc);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -0.5px;
+        .icon {
+            flex: none;
+            display: block;
         }
 
-        .logo-text p {
-            font-size: 11px;
-            color: var(--color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        summary {
+            list-style: none;
         }
 
-        .system-status {
-            display: flex;
+        summary::-webkit-details-marker {
+            display: none;
+        }
+
+        /* Yerleşim: belgeler + sohbetler | sohbet akışı | kaynaklar */
+        .app {
+            display: grid;
+            grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--sources-w);
+            height: 100vh;
+            height: 100dvh;
+        }
+
+        /* Ortak kontroller */
+        .btn {
+            display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            padding: 6px 14px;
-            border-radius: 30px;
-            font-size: 12px;
+            height: 34px;
+            padding: 0 12px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-strong);
+            background: var(--surface);
+            font-size: 14px;
             font-weight: 500;
-            color: var(--color-success);
         }
 
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            background-color: var(--color-success);
+        .btn:hover {
+            border-color: var(--text-3);
+        }
+
+        .btn:disabled {
+            cursor: progress;
+            color: var(--text-3);
+        }
+
+        .btn-quiet {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 30px;
+            padding: 0 8px;
+            border: 0;
+            border-radius: 6px;
+            background: none;
+            color: var(--text-2);
+            font-size: 13px;
+        }
+
+        .btn-quiet:hover {
+            background: var(--hover);
+            color: var(--text);
+        }
+
+        .icon-btn {
+            width: 32px;
+            height: 32px;
+            display: inline-grid;
+            place-items: center;
+            flex: none;
+            border: 0;
+            border-radius: 6px;
+            background: none;
+            color: var(--text-2);
+        }
+
+        .icon-btn:hover {
+            background: var(--hover);
+            color: var(--text);
+        }
+
+        .show-below-wide,
+        .show-narrow {
+            display: none;
+        }
+
+        .spinner {
+            width: 14px;
+            height: 14px;
+            flex: none;
+            border: 2px solid var(--border-strong);
+            border-top-color: var(--accent);
             border-radius: 50%;
-            box-shadow: 0 0 10px var(--color-success);
-            animation: pulse 1.5s infinite;
+            animation: spin 0.8s linear infinite;
         }
 
-        @keyframes pulse {
-            0% {
-                transform: scale(0.9);
-                opacity: 0.6;
-            }
-
-            50% {
-                transform: scale(1.1);
-                opacity: 1;
-            }
-
-            100% {
-                transform: scale(0.9);
-                opacity: 0.6;
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
             }
         }
 
-        main {
-            max-width: 1600px;
-            margin: 0 auto;
-            padding: 30px 40px;
-            display: grid;
-            grid-template-columns: 420px 1fr;
-            gap: 30px;
-            height: calc(100vh - 81px);
-        }
-
-        /* Left Side: Controls & Logs */
+        /* Sol panel */
         .sidebar {
             display: flex;
             flex-direction: column;
-            gap: 24px;
+            min-height: 0;
             overflow-y: auto;
-            padding-right: 8px;
+            padding: 14px 12px;
+            background: var(--surface-sunk);
+            border-right: 1px solid var(--border);
         }
 
-        .glass-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 16px;
-            padding: 24px;
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .glass-card:hover {
-            border-color: rgba(255, 255, 255, 0.12);
-        }
-
-        .card-title {
-            font-size: 16px;
-            margin-bottom: 16px;
+        .brand {
             display: flex;
             align-items: center;
             gap: 10px;
-            color: #ffffff;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            padding-bottom: 12px;
+            padding: 2px 6px 16px;
         }
 
-        .card-title svg {
-            width: 18px;
-            height: 18px;
-            color: var(--color-primary);
+        .brand-mark {
+            width: 28px;
+            height: 28px;
+            flex: none;
+            color: var(--text);
         }
 
-        /* Query Input Area */
-        .query-form {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .textarea-container {
-            position: relative;
-            width: 100%;
-        }
-
-        textarea {
-            width: 100%;
-            height: 120px;
-            background: rgba(8, 12, 24, 0.6);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 16px;
-            color: #ffffff;
-            font-family: inherit;
-            font-size: 14px;
-            line-height: 1.5;
-            resize: none;
-            outline: none;
-            transition: all 0.3s ease;
-        }
-
-        textarea:focus {
-            border-color: var(--color-primary);
-            box-shadow: 0 0 15px rgba(99, 102, 241, 0.25);
-            background: rgba(8, 12, 24, 0.8);
-        }
-
-        textarea::placeholder {
-            color: var(--color-text-muted);
-            opacity: 0.6;
-        }
-
-        .btn-submit {
-            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-            color: #ffffff;
-            border: none;
-            border-radius: 12px;
-            padding: 14px 20px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-        }
-
-        .btn-submit:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
-            filter: brightness(1.1);
-        }
-
-        .btn-submit:active {
-            transform: translateY(0);
-        }
-
-        .btn-submit:disabled {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--color-text-muted);
-            cursor: not-allowed;
-            box-shadow: none;
-            transform: none;
-            filter: none;
-        }
-
-        /* Pipeline Steps Visualizer */
-        .pipeline-steps {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            position: relative;
-        }
-
-        .pipeline-steps::before {
-            content: '';
-            position: absolute;
-            left: 17px;
-            top: 20px;
-            bottom: 20px;
-            width: 2px;
-            background: rgba(255, 255, 255, 0.05);
-            z-index: 0;
-        }
-
-        .step-item {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            z-index: 1;
-            opacity: 0.4;
-            transition: all 0.4s ease;
-        }
-
-        .step-item.active {
-            opacity: 1;
-        }
-
-        .step-item.completed {
-            opacity: 0.85;
-        }
-
-        .step-indicator {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: rgba(8, 12, 24, 0.8);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--color-text-muted);
-            transition: all 0.3s ease;
-        }
-
-        .step-item.active .step-indicator {
-            border-color: var(--color-primary);
-            background: var(--color-primary);
-            color: white;
-            box-shadow: 0 0 15px rgba(99, 102, 241, 0.6);
-        }
-
-        .step-item.completed .step-indicator {
-            border-color: var(--color-success);
-            background: var(--color-success-bg);
-            color: var(--color-success);
-        }
-
-        .step-item.failed .step-indicator {
-            border-color: var(--color-error);
-            background: var(--color-error-bg);
-            color: var(--color-error);
-        }
-
-        .step-details {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .step-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--color-text-main);
-        }
-
-        .step-desc {
-            font-size: 11px;
-            color: var(--color-text-muted);
-            margin-top: 2px;
-        }
-
-        /* Right Side: Results Display Area */
-        .workspace-content {
-            display: flex;
-            flex-direction: column;
-            gap: 30px;
-            overflow-y: auto;
-            padding-right: 8px;
-        }
-
-        .welcome-screen {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            height: 100%;
-            color: var(--color-text-muted);
-            padding: 80px 40px;
-        }
-
-        .welcome-icon {
-            width: 80px;
-            height: 80px;
-            border-radius: 20px;
-            background: rgba(99, 102, 241, 0.05);
-            border: 1px solid rgba(99, 102, 241, 0.15);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 24px;
-            color: var(--color-primary);
-            box-shadow: inset 0 0 20px rgba(99, 102, 241, 0.05);
-        }
-
-        .welcome-icon svg {
-            width: 40px;
-            height: 40px;
-        }
-
-        .welcome-screen h2 {
-            font-size: 24px;
-            color: white;
-            margin-bottom: 12px;
-            letter-spacing: -0.5px;
-        }
-
-        .welcome-screen p {
-            max-width: 500px;
-            line-height: 1.6;
-            font-size: 14px;
-        }
-
-        .example-queries {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-            margin-top: 40px;
-            max-width: 650px;
-            width: 100%;
-        }
-
-        .example-btn {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 16px;
-            color: var(--color-text-main);
-            text-align: left;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            line-height: 1.4;
-        }
-
-        .example-btn:hover {
-            background: rgba(99, 102, 241, 0.05);
-            border-color: rgba(99, 102, 241, 0.3);
-            transform: translateY(-2px);
-        }
-
-        /* Results dashboard styles */
-        .results-dashboard {
-            display: none;
-            flex-direction: column;
-            gap: 24px;
-            animation: fadeIn 0.4s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Metrics grid */
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-        }
-
-        .metric-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 18px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .metric-label {
-            font-size: 11px;
-            color: var(--color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .metric-value {
-            font-size: 24px;
-            font-weight: 700;
-            font-family: 'Outfit', sans-serif;
-        }
-
-        .metric-value.success {
-            color: var(--color-success);
-        }
-
-        .metric-value.warning {
-            color: var(--color-warning);
-        }
-
-        .metric-value.error {
-            color: var(--color-error);
-        }
-
-        .metric-value.primary {
-            color: var(--color-primary);
-        }
-
-        /* Answer panels */
-        .answer-container {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .answer-bubble {
-            background: rgba(99, 102, 241, 0.05);
-            border: 1px solid rgba(99, 102, 241, 0.15);
-            border-radius: 16px;
-            padding: 24px;
-            line-height: 1.6;
-            font-size: 15px;
-            color: #ffffff;
-            box-shadow: inset 0 0 20px rgba(99, 102, 241, 0.03);
-            white-space: pre-wrap;
-        }
-
-        /* Cevap doğrulama durumu (QueryResponse.status) */
-        .answer-status {
-            --status-color: var(--color-text-muted);
-            --status-bg: rgba(255, 255, 255, 0.03);
-            --status-border: var(--card-border);
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            padding: 12px 16px;
-            border-radius: 12px;
-            border: 1px solid var(--status-border);
-            background: var(--status-bg);
-        }
-
-        .answer-status.success {
-            --status-color: var(--color-success);
-            --status-bg: var(--color-success-bg);
-            --status-border: var(--color-success-border);
-        }
-
-        .answer-status.warning {
-            --status-color: var(--color-warning);
-            --status-bg: var(--color-warning-bg);
-            --status-border: var(--color-warning-border);
-        }
-
-        .answer-status.error {
-            --status-color: var(--color-error);
-            --status-bg: var(--color-error-bg);
-            --status-border: var(--color-error-border);
-        }
-
-        .answer-status-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .answer-status-badge {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--status-color);
-        }
-
-        .answer-status-attempts {
-            font-size: 11px;
-            color: var(--color-text-muted);
-        }
-
-        .answer-status-desc {
-            font-size: 13px;
-            line-height: 1.5;
-            color: var(--color-text-main);
-        }
-
-        .repair-comparison {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        .comparison-pane {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .pane-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--color-text-muted);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .pane-label svg {
-            width: 14px;
-            height: 14px;
-        }
-
-        .pane-content {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 18px;
-            font-size: 14px;
-            line-height: 1.5;
-            min-height: 120px;
-            white-space: pre-wrap;
-        }
-
-        .pane-content.original {
-            border-left: 3px solid var(--color-warning);
-        }
-
-        .pane-content.repaired {
-            border-left: 3px solid var(--color-success);
-            background: rgba(16, 185, 129, 0.02);
-            border-color: var(--color-success-border);
-        }
-
-        /* Claims visualizer */
-        .claims-section {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .claims-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-        }
-
-        .claim-card {
-            background: rgba(255, 255, 255, 0.015);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .claim-card:hover {
-            background: rgba(255, 255, 255, 0.03);
-            border-color: rgba(255, 255, 255, 0.15);
-            transform: translateX(4px);
-        }
-
-        .claim-left {
-            display: flex;
-            align-items: center;
-            gap: 14px;
+        .brand-text {
             flex: 1;
+            min-width: 0;
         }
 
-        .claim-status-badge {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .claim-status-badge.supported {
-            background: var(--color-success-bg);
-            border: 1px solid var(--color-success-border);
-            color: var(--color-success);
-        }
-
-        .claim-status-badge.refuted {
-            background: var(--color-error-bg);
-            border: 1px solid var(--color-error-border);
-            color: var(--color-error);
-        }
-
-        .claim-status-badge.unknown {
-            background: var(--color-warning-bg);
-            border: 1px solid var(--color-warning-border);
-            color: var(--color-warning);
-        }
-
-        .claim-status-badge svg {
-            width: 14px;
-            height: 14px;
-        }
-
-        .claim-text {
+        .brand-name {
             font-size: 14px;
-            line-height: 1.4;
-        }
-
-        .claim-meta {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .claim-type-pill {
-            font-size: 10px;
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--color-text-muted);
+            line-height: 1.2;
         }
 
-        .claim-confidence-pill {
+        .brand-sub {
+            font-size: 12px;
+            color: var(--text-3);
+        }
+
+        .new-chat {
+            width: 100%;
+        }
+
+        .side-section {
+            margin-top: 22px;
+        }
+
+        .side-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            padding: 0 6px;
+            margin-bottom: 4px;
+        }
+
+        .side-head h2 {
+            margin: 0;
             font-size: 12px;
             font-weight: 600;
-            color: var(--color-text-main);
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--card-border);
-            padding: 4px 8px;
+            color: var(--text-3);
+        }
+
+        .count {
+            font-size: 12px;
+            color: var(--text-3);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .doc-filter {
+            width: 100%;
+            height: 30px;
+            margin: 2px 0 6px;
+            padding: 0 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--surface);
+            font-size: 13px;
+        }
+
+        .doc-list,
+        .chat-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .doc-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 6px;
+            font-size: 13px;
+            color: var(--text-2);
+        }
+
+        .doc-item .icon {
+            color: var(--text-3);
+        }
+
+        .doc-item span,
+        .chat-item {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .list-note {
+            padding: 5px 6px;
+            font-size: 13px;
+            color: var(--text-3);
+        }
+
+        .link-btn {
+            border: 0;
+            background: none;
+            padding: 4px 6px;
+            font-size: 12px;
+            color: var(--accent-text);
+        }
+
+        .link-btn:hover {
+            text-decoration: underline;
+        }
+
+        .upload {
+            display: grid;
+            justify-items: start;
+            gap: 6px;
+            margin-top: 8px;
+            padding: 10px;
+            border: 1px dashed var(--border-strong);
+            border-radius: var(--radius);
+        }
+
+        .upload.is-drop {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            color: var(--text-3);
+        }
+
+        .upload-status {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            margin-top: 6px;
+            padding: 0 6px;
+            font-size: 12px;
+            overflow-wrap: anywhere;
+        }
+
+        .upload-status:empty {
+            display: none;
+        }
+
+        .upload-status.is-busy {
+            color: var(--text-2);
+        }
+
+        .upload-status.is-ok {
+            color: var(--ok);
+        }
+
+        .upload-status.is-error {
+            color: var(--danger);
+        }
+
+        .chat-row {
+            display: flex;
+            align-items: center;
             border-radius: 6px;
         }
 
-        .chevron-icon {
-            width: 16px;
-            height: 16px;
-            color: var(--color-text-muted);
-            transition: transform 0.3s ease;
+        .chat-row:hover,
+        .chat-row.is-active {
+            background: var(--selected);
         }
 
-        /* Expanded Claim Detail Pane */
-        .claim-card.expanded {
-            border-color: rgba(99, 102, 241, 0.3);
-            background: rgba(99, 102, 241, 0.02);
-            border-bottom-left-radius: 0;
-            border-bottom-right-radius: 0;
-            margin-bottom: 0;
+        .chat-item {
+            flex: 1;
+            min-width: 0;
+            padding: 6px;
+            border: 0;
+            background: none;
+            text-align: left;
+            font-size: 13px;
+            color: var(--text-2);
         }
 
-        .claim-card.expanded .chevron-icon {
-            transform: rotate(90deg);
-            color: var(--color-primary);
+        .chat-row.is-active .chat-item {
+            color: var(--text);
         }
 
-        .claim-detail-pane {
-            background: rgba(10, 15, 30, 0.9);
-            border: 1px solid rgba(99, 102, 241, 0.3);
-            border-top: none;
-            border-bottom-left-radius: 12px;
-            border-bottom-right-radius: 12px;
-            padding: 20px;
-            margin-top: -13px;
-            margin-bottom: 12px;
-            display: none;
-            flex-direction: column;
-            gap: 16px;
-            animation: slideDown 0.3s ease;
+        .chat-del {
+            width: 28px;
+            height: 28px;
+            opacity: 0;
         }
 
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-5px);
-            }
+        .chat-row:hover .chat-del,
+        .chat-del:focus-visible {
+            opacity: 1;
+        }
 
-            to {
+        @media (hover: none) {
+            .chat-del {
                 opacity: 1;
-                transform: translateY(0);
             }
         }
 
-        .reasoning-box {
-            font-size: 13px;
-            line-height: 1.5;
-            color: var(--color-text-muted);
-            background: rgba(255, 255, 255, 0.02);
-            padding: 12px 16px;
-            border-radius: 8px;
-            border-left: 2px solid var(--color-primary);
-        }
-
-        .evidence-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .evidence-title {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--color-text-main);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .evidence-item {
-            font-size: 13px;
-            line-height: 1.45;
-            background: rgba(255, 255, 255, 0.01);
-            border: 1px dashed var(--card-border);
-            padding: 12px;
-            border-radius: 8px;
-            color: var(--color-text-muted);
-            position: relative;
-        }
-
-        .evidence-item::before {
-            content: '📌';
-            margin-right: 8px;
-        }
-
-        /* General Sources visualizer */
-        .sources-section {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .sources-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 16px;
-        }
-
-        .source-card {
-            background: rgba(255, 255, 255, 0.01);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            font-size: 13px;
-        }
-
-        .source-header {
+        .side-foot {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-            padding-bottom: 8px;
+            gap: 8px;
+            margin-top: auto;
+            padding: 16px 0 0 6px;
         }
 
-        .source-name {
-            font-weight: 600;
-            color: var(--color-primary);
-            display: flex;
+        .health {
+            display: inline-flex;
             align-items: center;
             gap: 6px;
+            font-size: 12px;
+            color: var(--text-3);
         }
 
-        .source-name svg {
-            width: 14px;
-            height: 14px;
+        .health .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--text-3);
         }
 
-        .source-id-badge {
-            font-size: 10px;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 2px 6px;
-            border-radius: 4px;
-            color: var(--color-text-muted);
+        .health.is-ok .dot {
+            background: var(--ok);
         }
 
-        .source-body {
-            line-height: 1.45;
-            color: var(--color-text-muted);
+        .health.is-down {
+            color: var(--danger);
+        }
+
+        .health.is-down .dot {
+            background: var(--danger);
+        }
+
+        /* Sohbet alanı */
+        .chat {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .chat-top {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 52px;
+            padding: 8px 16px 8px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .chat-title {
+            flex: 1;
+            min-width: 0;
+            margin: 0;
+            font-size: 15px;
+            font-weight: 500;
+            white-space: nowrap;
             overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .thread {
+            overflow-y: auto;
+            padding: 28px 20px 12px;
+        }
+
+        .empty {
+            max-width: var(--content-w);
+            margin: 6vh auto 0;
+        }
+
+        .empty h2 {
+            margin: 0 0 10px;
+            font-family: var(--font-read);
+            font-size: 30px;
+            font-weight: 600;
+            line-height: 1.2;
+            letter-spacing: -0.01em;
+        }
+
+        .empty p {
+            max-width: 56ch;
+            margin: 0 0 8px;
+            color: var(--text-2);
+        }
+
+        .empty-docs {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .examples {
+            margin-top: 32px;
+        }
+
+        .examples h3 {
+            margin: 0 0 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-3);
+        }
+
+        .examples ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .example {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 4px;
+            border: 0;
+            border-bottom: 1px solid var(--border);
+            background: none;
+            text-align: left;
+        }
+
+        .example-text {
+            flex: 1;
+        }
+
+        .example-topic {
+            font-size: 12px;
+            color: var(--text-3);
+        }
+
+        .example .icon {
+            color: var(--text-3);
+        }
+
+        .example:hover .example-text {
+            color: var(--accent-text);
+        }
+
+        .turn {
+            max-width: var(--content-w);
+            margin: 0 auto 40px;
+            scroll-margin-top: 16px;
+        }
+
+        .question {
+            width: fit-content;
+            max-width: 85%;
+            margin-left: auto;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 14px 14px 4px 14px;
+            background: var(--surface);
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .reply {
+            margin-top: 18px;
+        }
+
+        .progress {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: var(--text-2);
+        }
+
+        .elapsed {
+            color: var(--text-3);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .progress-note {
+            flex-basis: 100%;
+            margin: 0;
+            padding-left: 24px;
+            font-size: 13px;
+            color: var(--text-3);
+        }
+
+        .reply-error {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--danger);
+            border-radius: var(--radius);
+            background: var(--danger-soft);
+            color: var(--danger);
+            font-size: 14px;
+        }
+
+        .reply-error.is-neutral {
+            border-color: var(--border-strong);
+            background: none;
+            color: var(--text-2);
+        }
+
+        .reply-error p {
+            margin: 0;
+        }
+
+        /* Cevap metni */
+        .answer {
+            font-family: var(--font-read);
+            font-size: 17px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .answer p,
+        .answer ul,
+        .answer ol,
+        .answer blockquote,
+        .answer pre,
+        .answer table {
+            margin: 0 0 0.8em;
+        }
+
+        .answer> :last-child {
+            margin-bottom: 0;
+        }
+
+        .answer ul,
+        .answer ol {
+            padding-left: 1.4em;
+        }
+
+        .answer li {
+            margin: 0.2em 0;
+        }
+
+        .answer h1,
+        .answer h2,
+        .answer h3,
+        .answer h4 {
+            margin: 1.2em 0 0.5em;
+            font-family: var(--font-ui);
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .answer code {
+            padding: 0.05em 0.3em;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--surface-sunk);
+            font-family: var(--font-mono);
+            font-size: 0.85em;
+        }
+
+        .answer pre {
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface-sunk);
+            overflow-x: auto;
+            font-size: 14px;
+        }
+
+        .answer pre code {
+            padding: 0;
+            border: 0;
+            background: none;
+        }
+
+        .answer blockquote {
+            padding-left: 12px;
+            border-left: 3px solid var(--border-strong);
+            color: var(--text-2);
+        }
+
+        .answer table {
+            display: block;
+            overflow-x: auto;
+            border-collapse: collapse;
+            font-family: var(--font-ui);
+            font-size: 14px;
+        }
+
+        .answer th,
+        .answer td {
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+
+        .answer mjx-container {
+            overflow-x: auto;
+            overflow-y: hidden;
+            max-width: 100%;
+        }
+
+        .cite {
+            display: inline-grid;
+            place-items: center;
+            min-width: 19px;
+            height: 19px;
+            margin: 0 1px;
+            padding: 0 5px;
+            border: 1px solid var(--border-strong);
+            border-radius: 5px;
+            background: var(--surface);
+            color: var(--text-2);
+            font-family: var(--font-ui);
+            font-size: 11px;
+            font-weight: 500;
+            line-height: 1;
+            vertical-align: 2px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .cite:hover {
+            border-color: var(--accent);
+            color: var(--accent-text);
+        }
+
+        .cite.is-active {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+            color: var(--accent-text);
+        }
+
+        /* Doğrulama durumu (QueryResponse.status) */
+        .answer-status {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 2px 10px;
+            margin-top: 18px;
+            font-size: 13px;
+            color: var(--text-2);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            align-self: center;
+            font-weight: 600;
+            color: var(--tone);
+        }
+
+        .tone-success {
+            --tone: var(--ok);
+        }
+
+        .tone-warning {
+            --tone: var(--warn);
+        }
+
+        .tone-error {
+            --tone: var(--danger);
+        }
+
+        .tone-neutral {
+            --tone: var(--text-2);
+        }
+
+        .trace {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-2);
+        }
+
+        .trace>summary {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: -6px;
+            padding: 4px 6px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .trace>summary:hover {
+            background: var(--hover);
+            color: var(--text);
+        }
+
+        .chev {
+            transition: transform 0.15s ease;
+        }
+
+        details[open]>summary .chev {
+            transform: rotate(90deg);
+        }
+
+        .claims {
+            list-style: none;
+            margin: 8px 0 0;
+            padding: 0;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface);
+        }
+
+        .claim+.claim {
+            border-top: 1px solid var(--border);
+        }
+
+        .claim-supported {
+            --tone: var(--ok);
+        }
+
+        .claim-unknown {
+            --tone: var(--warn);
+        }
+
+        .claim-refuted {
+            --tone: var(--danger);
+        }
+
+        .claim>details>summary {
+            display: grid;
+            grid-template-columns: 16px minmax(0, 1fr) auto;
+            align-items: start;
+            gap: 10px;
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .claim>details>summary:hover {
+            background: var(--hover);
+        }
+
+        .claim .icon {
+            margin-top: 3px;
+            color: var(--tone);
+        }
+
+        .claim-state {
+            font-size: 12px;
+            color: var(--tone);
+            white-space: nowrap;
+        }
+
+        .claim-body {
+            display: grid;
+            gap: 8px;
+            padding: 0 12px 12px 38px;
+        }
+
+        .claim-reason {
+            margin: 0;
+            font-size: 13px;
+            color: var(--text-2);
+        }
+
+        .claim-basis {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: var(--text-3);
+        }
+
+        .extra-evidence>summary {
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--text-3);
+        }
+
+        .extra-evidence>summary:hover {
+            color: var(--text);
+        }
+
+        .extra-evidence blockquote {
             display: -webkit-box;
+            margin: 6px 0 0;
+            padding: 2px 10px;
+            border-left: 2px solid var(--border-strong);
+            font-size: 13px;
+            color: var(--text-2);
+            overflow: hidden;
             -webkit-line-clamp: 4;
             -webkit-box-orient: vertical;
         }
 
-        .file-list-item {
+        .reply-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px;
+            margin: 6px 0 0 -8px;
+        }
+
+        /* Soru kutusu */
+        .composer {
+            padding: 8px 20px 16px;
+        }
+
+        .composer-box {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            max-width: var(--content-w);
+            margin: 0 auto;
+            padding: 8px 8px 8px 14px;
+            border: 1px solid var(--border-strong);
+            border-radius: 14px;
+            background: var(--surface);
+        }
+
+        .composer-box:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        .composer textarea {
+            flex: 1;
+            min-width: 0;
+            max-height: 200px;
+            padding: 6px 0;
+            border: 0;
+            outline: 0;
+            background: none;
+            resize: none;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .composer textarea::placeholder {
+            color: var(--text-3);
+        }
+
+        .send-btn {
+            width: 34px;
+            height: 34px;
+            flex: none;
+            display: grid;
+            place-items: center;
+            border: 0;
+            border-radius: 9px;
+            background: var(--accent);
+            color: var(--on-accent);
+        }
+
+        .send-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .send-btn.is-stop {
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        .composer-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            max-width: var(--content-w);
+            margin: 6px auto 0;
+            font-size: 12px;
+            color: var(--text-3);
+        }
+
+        .composer-meta .is-error {
+            color: var(--danger);
+        }
+
+        .char-count {
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Kaynak paneli */
+        .sources {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            border-left: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .sources-head {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 12px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
+            min-height: 52px;
+            padding: 8px 12px 8px 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sources-head h2 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        .sources-meta {
+            flex: 1;
             font-size: 12px;
-            color: var(--color-text-main);
+            color: var(--text-3);
         }
 
-        .file-list-item svg {
-            width: 14px;
-            height: 14px;
-            color: var(--color-primary);
+        .sources-body {
+            display: grid;
+            align-content: start;
+            gap: 18px;
+            overflow-y: auto;
+            padding: 14px 14px 24px;
         }
 
-        /* Responsive Layout */
-        @media (max-width: 1100px) {
-            main {
-                grid-template-columns: 1fr;
-                height: auto;
+        .sources-empty {
+            margin: 0;
+            padding: 12px 4px;
+            font-size: 14px;
+            color: var(--text-3);
+        }
+
+        .sources-group h3,
+        .more-sources>summary {
+            margin: 0 0 6px 4px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-3);
+        }
+
+        .more-sources>summary {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .more-sources>summary:hover {
+            color: var(--text);
+        }
+
+        .source {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg);
+            scroll-margin: 12px;
+        }
+
+        .source+.source {
+            margin-top: 8px;
+        }
+
+        .source.is-focused {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        .source>summary {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 2px 8px;
+            padding: 10px 12px;
+            cursor: pointer;
+        }
+
+        .source-n {
+            grid-row: span 2;
+            display: grid;
+            place-items: center;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 5px;
+            border: 1px solid var(--border-strong);
+            border-radius: 6px;
+            background: var(--surface);
+            font-size: 12px;
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .source.is-focused .source-n {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+            color: var(--accent-text);
+        }
+
+        .source-name {
+            align-self: center;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .source-preview {
+            display: -webkit-box;
+            font-size: 13px;
+            color: var(--text-2);
+            overflow: hidden;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .source[open] .source-preview {
+            display: none;
+        }
+
+        .source-text {
+            margin: 0;
+            padding: 0 12px 12px;
+            font-family: var(--font-read);
+            font-size: 15px;
+            line-height: 1.6;
+            white-space: pre-line;
+            overflow-wrap: anywhere;
+        }
+
+        .source-claims {
+            padding: 10px 12px 12px;
+            border-top: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .source-claims p {
+            margin: 0 0 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-3);
+        }
+
+        .source-claims ul {
+            display: grid;
+            gap: 6px;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .source-claims li {
+            display: flex;
+            gap: 8px;
+        }
+
+        .source-claims .icon {
+            margin-top: 2px;
+            color: var(--tone);
+        }
+
+        .scrim {
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        /* Dar ekranlar: kaynaklar ve sol panel çekmece olur */
+        @media (max-width: 1199px) {
+            .app {
+                grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+            }
+
+            .sources {
+                position: fixed;
+                inset: 0 0 0 auto;
+                z-index: 30;
+                width: min(420px, 92vw);
+                transform: translateX(100%);
+                visibility: hidden;
+                transition: transform 0.2s ease, visibility 0s linear 0.2s;
+            }
+
+            body[data-drawer="sources"] .sources {
+                transform: none;
+                visibility: visible;
+                transition: transform 0.2s ease;
+            }
+
+            .show-below-wide {
+                display: inline-flex;
+            }
+        }
+
+        @media (max-width: 859px) {
+            .app {
+                grid-template-columns: minmax(0, 1fr);
             }
 
             .sidebar {
-                height: auto;
-                overflow-y: visible;
+                position: fixed;
+                inset: 0 auto 0 0;
+                z-index: 30;
+                width: min(300px, 86vw);
+                transform: translateX(-100%);
+                visibility: hidden;
+                transition: transform 0.2s ease, visibility 0s linear 0.2s;
             }
 
-            .workspace-content {
-                height: auto;
-                overflow-y: visible;
+            body[data-drawer="sidebar"] .sidebar {
+                transform: none;
+                visibility: visible;
+                transition: transform 0.2s ease;
+            }
+
+            .show-narrow {
+                display: inline-grid;
+            }
+
+            .chat-top {
+                padding-left: 8px;
+            }
+
+            .thread {
+                padding: 20px 16px 8px;
+            }
+
+            .composer {
+                padding: 6px 12px 12px;
+            }
+
+            .empty h2 {
+                font-size: 24px;
+            }
+
+            .composer-hint {
+                display: none;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+                scroll-behavior: auto !important;
+            }
+
+            .spinner {
+                animation-duration: 2s;
             }
         }
     </style>
 </head>
 
 <body>
-
-    <header>
-        <div class="logo-container">
-            <div class="logo-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    style="width: 22px; height: 22px; transform: rotate(-45deg); transform-origin: center;">
-                    <defs>
-                        <linearGradient id="bow-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#c084fc" />
-                            <stop offset="100%" stop-color="#818cf8" />
-                        </linearGradient>
-                    </defs>
-                    <path d="M 12 3 Q 4 12, 12 21" stroke="url(#bow-grad)" />
-                    <line x1="12" y1="3" x2="12" y2="21" stroke="url(#bow-grad)" opacity="0.5" />
-                    <line x1="8" y1="12" x2="20" y2="12" stroke="#ffffff" />
-                    <path d="M 16 8 L 20 12 L 16 16" stroke="#ffffff" />
+    <div class="app">
+        <!-- Sol panel: belgeler ve sohbet geçmişi -->
+        <aside class="sidebar" id="sidebar" aria-label="Belgeler ve sohbetler">
+            <div class="brand">
+                <svg class="brand-mark" viewBox="0 0 28 28" fill="none" stroke-width="2.2" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                    <path d="M10 5H6v18h4M18 5h4v18h-4" stroke="currentColor" />
+                    <path d="M10.5 14.5l2.75 2.75L18 11.5" stroke="var(--accent)" />
                 </svg>
-            </div>
-            <div class="logo-text">
-                <h1>Self-Correcting RAG</h1>
-                <p>Agentic Verification Workspace</p>
-            </div>
-        </div>
-        <div class="system-status">
-            <span class="status-dot"></span>
-            <span>Qdrant & LLM Connected</span>
-        </div>
-    </header>
-
-    <main>
-        <!-- Left Sidebar: Controls -->
-        <div class="sidebar">
-            <!-- Search Panel -->
-            <div class="glass-card">
-                <div class="card-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    Sorgu Paneli
+                <div class="brand-text">
+                    <div class="brand-name">Self-Correcting RAG</div>
+                    <div class="brand-sub">Kaynaklı, doğrulanmış cevaplar</div>
                 </div>
-                <div class="query-form">
-                    <div class="textarea-container">
-                        <textarea id="query-input" maxlength="1000"
-                            placeholder="Örn: How does LoRA reduce trainable parameters during fine-tuning?"></textarea>
-                    </div>
-                    <button id="submit-btn" class="btn-submit" onclick="submitQuery()">
-                        <span>Sorgula</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="22" y1="2" x2="11" y2="13"></line>
-                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                        </svg>
-                    </button>
-                </div>
+                <button class="icon-btn show-narrow" data-action="close-drawer" data-icon="x"
+                    aria-label="Menüyü kapat"></button>
             </div>
 
-            <!-- Document Upload Panel -->
-            <div class="glass-card">
-                <div class="card-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="17 8 12 3 7 8"></polyline>
-                        <line x1="12" y1="3" x2="12" y2="15"></line>
-                    </svg>
-                    Belge Yükle
+            <button class="btn new-chat" id="new-chat-btn" data-icon="plus">Yeni sohbet</button>
+
+            <section class="side-section" id="docs-section" aria-labelledby="docs-heading">
+                <div class="side-head">
+                    <h2 id="docs-heading">Belgeler</h2>
+                    <span class="count" id="doc-count"></span>
                 </div>
-                <div class="query-form">
-                    <div style="border: 1px dashed var(--card-border); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(255,255,255,0.02);"
-                        id="upload-dropzone" onclick="document.getElementById('file-upload').click()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round"
-                            style="width: 28px; height: 28px; margin-bottom: 8px;">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="12" y1="18" x2="12" y2="12"></line>
-                            <line x1="9" y1="15" x2="15" y2="15"></line>
-                        </svg>
-                        <div style="font-size: 13px; color: var(--color-text-muted);" id="upload-text">PDF veya TXT dosyası
-                            seçmek için tıklayın</div>
-                        <input type="file" id="file-upload" accept=".pdf,.txt" style="display: none;"
-                            onchange="handleFileSelect(event)">
-                    </div>
-                    <button id="upload-btn" class="btn-submit" onclick="uploadFile()" disabled
-                        style="background: linear-gradient(135deg, var(--color-success), #059669);">
-                        <span>Yükle ve İşle</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                        </svg>
-                    </button>
-                    <div id="upload-status"
-                        style="font-size: 12px; text-align: center; margin-top: 4px; display: none; padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.2);">
-                    </div>
-                    <div id="uploaded-files-list"
-                        style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 150px; overflow-y: auto;">
-                        <!-- File items will be injected here -->
-                    </div>
+                <label class="sr-only" for="doc-filter">Belgelerde ara</label>
+                <input type="search" class="doc-filter" id="doc-filter" placeholder="Belgelerde ara" hidden>
+                <ul class="doc-list" id="doc-list"></ul>
+                <button class="link-btn" id="doc-more" hidden></button>
+                <div class="upload" id="upload-zone">
+                    <button class="btn" id="add-doc-btn" data-icon="upload">Belge ekle</button>
+                    <span class="upload-hint">PDF veya TXT, en fazla 20 MB. Buraya sürükleyip de bırakabilirsiniz.</span>
+                    <input type="file" id="file-upload" accept=".pdf,.txt" hidden>
                 </div>
+                <div class="upload-status" id="upload-status" role="status" aria-live="polite"></div>
+            </section>
+
+            <section class="side-section" aria-labelledby="chats-heading">
+                <div class="side-head">
+                    <h2 id="chats-heading">Sohbetler</h2>
+                </div>
+                <ul class="chat-list" id="chat-list"></ul>
+            </section>
+
+            <div class="side-foot">
+                <span class="health" id="health">
+                    <span class="dot" aria-hidden="true"></span>
+                    <span id="health-text">Sunucu kontrol ediliyor…</span>
+                </span>
+                <button class="icon-btn" id="theme-btn" aria-label="Koyu temaya geç"></button>
             </div>
+        </aside>
 
-            <!-- Pipeline Progress Visualizer -->
-            <div class="glass-card">
-                <div class="card-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                    </svg>
-                    İşlem Aşamaları
+        <!-- Orta: sohbet akışı -->
+        <main class="chat">
+            <header class="chat-top">
+                <button class="icon-btn show-narrow" data-action="open-sidebar" data-icon="menu"
+                    aria-label="Menüyü aç"></button>
+                <h1 class="chat-title" id="chat-title">Yeni sohbet</h1>
+                <button class="btn-quiet show-below-wide" id="open-sources-btn" data-action="open-sources"
+                    data-icon="book" hidden>Kaynaklar</button>
+            </header>
+
+            <div class="thread" id="thread"></div>
+
+            <form class="composer" id="composer" novalidate>
+                <div class="composer-box">
+                    <label class="sr-only" for="query-input">Soru</label>
+                    <textarea id="query-input" rows="1" maxlength="1000"
+                        placeholder="Belgelerinize bir soru sorun"></textarea>
+                    <button type="submit" class="send-btn" id="submit-btn" aria-label="Gönder"></button>
                 </div>
-                <div class="pipeline-steps">
-                    <div class="step-item" id="step-retrieval">
-                        <div class="step-indicator">1</div>
-                        <div class="step-details">
-                            <span class="step-name">Veri Arama</span>
-                            <span class="step-desc">Qdrant'tan bilgi getiriliyor (Recall)</span>
-                        </div>
-                    </div>
-                    <div class="step-item" id="step-generate">
-                        <div class="step-indicator">2</div>
-                        <div class="step-details">
-                            <span class="step-name">İlk Cevap</span>
-                            <span class="step-desc">İlk taslak cevap yazılıyor</span>
-                        </div>
-                    </div>
-                    <div class="step-item" id="step-extract">
-                        <div class="step-indicator">3</div>
-                        <div class="step-details">
-                            <span class="step-name">İddia Çıkarımı</span>
-                            <span class="step-desc">İddialar atomic parçalara bölünüyor</span>
-                        </div>
-                    </div>
-                    <div class="step-item" id="step-verify">
-                        <div class="step-indicator">4</div>
-                        <div class="step-details">
-                            <span class="step-name">Kanıt Kontrolü</span>
-                            <span class="step-desc">Her iddia Qdrant'ta doğrulanıyor</span>
-                        </div>
-                    </div>
-                    <div class="step-item" id="step-repair">
-                        <div class="step-indicator">5</div>
-                        <div class="step-details">
-                            <span class="step-name">Onarım & Karar</span>
-                            <span class="step-desc">Hatalı iddialar onarılıyor</span>
-                        </div>
-                    </div>
+                <div class="composer-meta">
+                    <span id="composer-note" class="composer-hint">Enter gönderir, Shift+Enter yeni satır. Her soru
+                        bağımsız yanıtlanır.</span>
+                    <span class="char-count" id="char-count"></span>
                 </div>
+            </form>
+        </main>
+
+        <!-- Sağ: seçili cevabın kaynak pasajları -->
+        <aside class="sources" id="sources-panel" aria-labelledby="sources-heading">
+            <header class="sources-head">
+                <h2 id="sources-heading">Kaynaklar</h2>
+                <span class="sources-meta" id="sources-meta"></span>
+                <button class="icon-btn show-below-wide" data-action="close-drawer" data-icon="x"
+                    aria-label="Kaynakları kapat"></button>
+            </header>
+            <div class="sources-body" id="sources-body"></div>
+        </aside>
+
+        <div class="scrim" id="scrim" data-action="close-drawer" hidden></div>
+    </div>
+
+    <p class="sr-only" id="announcer" role="status" aria-live="polite"></p>
+
+    <template id="empty-template">
+        <section class="empty">
+            <h2>Belgelerinize soru sorun</h2>
+            <p>Cevaplar yalnızca yüklediğiniz belgelerden yazılır. Her iddia kaynaklarla tek tek kontrol edilir;
+                kaynaklarla çelişen bir iddia cevapta yer almaz.</p>
+            <div class="empty-docs">
+                <p id="empty-docs-text"></p>
+                <button class="btn" data-action="add-doc" data-icon="upload" hidden>Belge ekle</button>
             </div>
-        </div>
-
-        <!-- Right Side: Content Area -->
-        <div class="workspace-content">
-
-            <!-- Welcome screen before query -->
-            <div class="welcome-screen" id="welcome-view">
-                <div class="welcome-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
-                </div>
-                <h2>Ajan Çalışma Alanına Hoş Geldiniz</h2>
-                <p>Sorunuzu girerek kendi kendini doğrulayan ve düzelten RAG mimarisini test etmeye başlayın.
-                    Sorgunuzdaki her iddia doğrulanacak ve uydurmalar anında filtrelenecektir.</p>
-
-                <div class="example-queries">
-                    <button class="example-btn"
-                        onclick="useExample('What is the main proposal of Bitcoin to prevent double-spending?')">
-                        <strong>Bitcoin:</strong> Prevent double-spending without a trusted third party?
-                    </button>
-                    <button class="example-btn"
-                        onclick="useExample('How does LoRA reduce the number of trainable parameters during fine-tuning?')">
-                        <strong>LoRA:</strong> How does it reduce trainable parameters?
-                    </button>
-                    <button class="example-btn"
-                        onclick="useExample('What is the formula of Scaled Dot-Product Attention in Transformers?')">
-                        <strong>Transformer:</strong> Scaled Dot-Product Attention formula?
-                    </button>
-                    <button class="example-btn"
-                        onclick="useExample('What is the target global warming limit in Celsius in the IPCC report?')">
-                        <strong>IPCC Climate:</strong> Global warming limit in Celsius?
-                    </button>
-                </div>
+            <div class="examples">
+                <h3>Örnek sorular</h3>
+                <ul>
+                    <li><button class="example" data-question="What is the main proposal of Bitcoin to prevent double-spending?"
+                            data-icon-end="arrow-right"><span class="example-text">How does Bitcoin prevent
+                                double-spending without a trusted third party?</span><span
+                                class="example-topic">Bitcoin</span></button></li>
+                    <li><button class="example" data-question="How does LoRA reduce the number of trainable parameters during fine-tuning?"
+                            data-icon-end="arrow-right"><span class="example-text">How does LoRA reduce the number of
+                                trainable parameters?</span><span class="example-topic">LoRA</span></button></li>
+                    <li><button class="example" data-question="What is the formula of Scaled Dot-Product Attention in Transformers?"
+                            data-icon-end="arrow-right"><span class="example-text">What is the formula of scaled
+                                dot-product attention?</span><span class="example-topic">Transformer</span></button>
+                    </li>
+                    <li><button class="example" data-question="What is the target global warming limit in Celsius in the IPCC report?"
+                            data-icon-end="arrow-right"><span class="example-text">What global warming limit does the
+                                IPCC report target?</span><span class="example-topic">IPCC</span></button></li>
+                </ul>
             </div>
-
-            <!-- Dashboard Results Display -->
-            <div class="results-dashboard" id="dashboard-view">
-
-                <!-- Metrics Panel -->
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <span class="metric-label">Toplam İddia</span>
-                        <span class="metric-value primary" id="metric-total">0</span>
-                    </div>
-                    <div class="metric-card">
-                        <span class="metric-label">Doğrulanan (Supported)</span>
-                        <span class="metric-value success" id="metric-supported">0</span>
-                    </div>
-                    <div class="metric-card">
-                        <span class="metric-label">Çürütülen / Bilinmeyen</span>
-                        <span class="metric-value error" id="metric-failed">0</span>
-                    </div>
-                    <div class="metric-card">
-                        <span class="metric-label">Ortalama Güven Skoru</span>
-                        <span class="metric-value warning" id="metric-confidence">0.00</span>
-                    </div>
-                </div>
-
-                <!-- Final Answer Panel -->
-                <div class="answer-container">
-                    <h3 class="pane-label" style="color: white; font-size: 18px;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                        Nihai Cevap
-                    </h3>
-                    <div class="answer-status" id="answer-status" style="display: none;">
-                        <div class="answer-status-head">
-                            <span class="answer-status-badge" id="answer-status-label"></span>
-                            <span class="answer-status-attempts" id="answer-status-attempts"></span>
-                        </div>
-                        <p class="answer-status-desc" id="answer-status-desc"></p>
-                    </div>
-                    <div class="answer-bubble" id="final-answer">
-                        Cevap yükleniyor...
-                    </div>
-                </div>
-
-                <!-- Repair Comparison (Hidden if no repair is needed) -->
-                <div class="answer-container" id="repair-panel" style="display: none;">
-                    <h3 class="pane-label" style="color: white; font-size: 16px;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path>
-                        </svg>
-                        Ajan Onarım Analizi (Answer Repair)
-                    </h3>
-                    <div class="repair-comparison">
-                        <div class="comparison-pane">
-                            <span class="pane-label">İlk Üretilen Uydurmalı Taslak</span>
-                            <div class="pane-content original" id="original-draft">İlk taslak...</div>
-                        </div>
-                        <div class="comparison-pane">
-                            <span class="pane-label" style="color: var(--color-success);">Düzeltilmiş (Onarılmış)
-                                Güvenli Metin</span>
-                            <div class="pane-content repaired" id="repaired-draft">Düzeltilmiş metin...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Claims Verification Dashboard -->
-                <div class="claims-section">
-                    <h3 class="pane-label" style="color: white; font-size: 16px;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                            <polyline points="10 9 9 9 8 9"></polyline>
-                        </svg>
-                        İddia Seviyesinde Doğrulama Durumu (Claims Breakdown)
-                    </h3>
-                    <div class="claims-grid" id="claims-container">
-                        <!-- Claims will be inserted here dynamically -->
-                    </div>
-                </div>
-
-                <!-- Global Sources Panel -->
-                <div class="sources-section">
-                    <h3 class="pane-label" style="color: white; font-size: 16px;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z">
-                            </path>
-                        </svg>
-                        Qdrant'tan Getirilen Doküman Parçaları (Global Sources)
-                    </h3>
-                    <div class="sources-grid" id="sources-container">
-                        <!-- Sources will be inserted here dynamically -->
-                    </div>
-                </div>
-
-            </div>
-
-        </div>
-    </main>
+        </section>
+    </template>
 
     <script>
         const MAX_UPLOAD_MB = 20;
         const ALLOWED_UPLOAD_EXTENSIONS = ['.pdf', '.txt'];
+        const MIN_QUESTION_LENGTH = 3;
+        const MAX_QUESTION_LENGTH = 1000;
+        const STORAGE_KEY = 'scr.chats.v1';
+        const THEME_KEY = 'scr.theme';
+        const MAX_SAVED_CHATS = 30;
+        const DOC_PREVIEW_COUNT = 8;
+        const WIDE_QUERY = window.matchMedia('(min-width: 1200px)');
 
         // Sunucudan / LLM'den gelen metin innerHTML'e asla ham olarak yazılmaz.
         function escapeHtml(value) {
@@ -1296,407 +1510,1090 @@
             return fallback;
         }
 
-        let selectedFile = null;
+        // İkonlar sabit SVG'lerdir; kullanıcı/sunucu verisi içermez.
+        const ICONS = {
+            plus: '<path d="M12 5v14M5 12h14"/>',
+            menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+            x: '<path d="M6 6l12 12M18 6L6 18"/>',
+            file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+            upload: '<path d="M12 15V4M7 9l5-5 5 5"/><path d="M5 20h14"/>',
+            'arrow-up': '<path d="M12 19V5M6 11l6-6 6 6"/>',
+            'arrow-right': '<path d="M5 12h14M13 6l6 6-6 6"/>',
+            stop: '<rect x="7" y="7" width="10" height="10" rx="1.5"/>',
+            copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/>',
+            check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+            help: '<circle cx="12" cy="12" r="9"/><path d="M12 17v.01M9.7 9.6a2.4 2.4 0 1 1 3.3 2.2c-.6.3-1 .8-1 1.5v.4"/>',
+            'x-circle': '<circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/>',
+            minus: '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>',
+            book: '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/>',
+            chevron: '<path d="M9 6l6 6-6 6"/>',
+            refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/>',
+            moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+            sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'
+        };
 
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            const dropzone = document.getElementById('upload-dropzone');
-            const uploadText = document.getElementById('upload-text');
-            const uploadBtn = document.getElementById('upload-btn');
-
-            const name = file ? file.name.toLowerCase() : '';
-            const validType = ALLOWED_UPLOAD_EXTENSIONS.some(ext => name.endsWith(ext));
-            const validSize = file && file.size <= MAX_UPLOAD_MB * 1024 * 1024;
-
-            if (file && validType && validSize) {
-                selectedFile = file;
-                uploadText.textContent = file.name;
-                uploadText.style.color = "var(--color-text-main)";
-                dropzone.style.borderColor = "var(--color-success)";
-                dropzone.style.background = "var(--color-success-bg)";
-                uploadBtn.disabled = false;
-            } else {
-                selectedFile = null;
-                uploadText.textContent = file && validType
-                    ? `Dosya ${MAX_UPLOAD_MB} MB sınırını aşıyor.`
-                    : "Geçersiz dosya. Lütfen PDF veya TXT seçin.";
-                uploadText.style.color = "var(--color-error)";
-                dropzone.style.borderColor = "var(--color-error)";
-                dropzone.style.background = "var(--color-error-bg)";
-                uploadBtn.disabled = true;
-            }
+        function icon(name, size = 16, extraClass = '') {
+            return `<svg class="icon ${extraClass}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
         }
 
-        async function uploadFile() {
-            if (!selectedFile) return;
+        function applyIcons(root) {
+            root.querySelectorAll('[data-icon]').forEach(node => node.insertAdjacentHTML('afterbegin', icon(node.dataset.icon)));
+            root.querySelectorAll('[data-icon-end]').forEach(node => node.insertAdjacentHTML('beforeend', icon(node.dataset.iconEnd)));
+        }
 
-            const uploadBtn = document.getElementById('upload-btn');
-            const statusDiv = document.getElementById('upload-status');
+        function el(id) {
+            return document.getElementById(id);
+        }
 
-            uploadBtn.disabled = true;
-            uploadBtn.innerHTML = `<span>Yükleniyor...</span>`;
-            statusDiv.style.display = 'block';
-            statusDiv.style.color = 'var(--color-warning)';
-            statusDiv.textContent = 'Dosya sunucuya yükleniyor ve işleniyor (Qdrant)...';
+        function formatDuration(ms) {
+            const seconds = Math.max(0, Math.round(ms / 1000));
+            return seconds < 60 ? `${seconds} sn` : `${Math.floor(seconds / 60)} dk ${seconds % 60} sn`;
+        }
 
-            const formData = new FormData();
-            formData.append('file', selectedFile);
+        function announce(text) {
+            el('announcer').textContent = text;
+        }
 
+        // ---- Durum ve tarayıcı depolaması (okunamazsa uygulama yine çalışır) ----
+
+        const state = {
+            chats: [],
+            activeId: null,          // null → henüz soru sorulmamış yeni sohbet
+            running: null,           // { chatId, index, controller, started, timer }
+            sourceView: null,        // { chatId, turnIndex, focusN }
+            files: [],
+            filesLoaded: false,
+            showAllDocs: false,
+            uploading: false
+        };
+
+        function loadChats() {
             try {
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                if (!response.ok) {
-                    throw new Error(await readErrorMessage(response, 'Bilinmeyen bir hata oluştu'));
-                }
-                const result = await response.json();
-
-                if (result.status === 'success') {
-                    statusDiv.style.color = 'var(--color-success)';
-                    statusDiv.textContent = 'Başarılı: ' + result.message;
-
-                    // Reset upload area after 3 seconds
-                    setTimeout(() => {
-                        document.getElementById('file-upload').value = '';
-                        selectedFile = null;
-                        document.getElementById('upload-text').textContent = "PDF veya TXT dosyası seçmek için tıklayın";
-                        document.getElementById('upload-text').style.color = "var(--color-text-muted)";
-                        const dropzone = document.getElementById('upload-dropzone');
-                        dropzone.style.borderColor = "var(--card-border)";
-                        dropzone.style.background = "rgba(255,255,255,0.02)";
-                        statusDiv.style.display = 'none';
-                        fetchUploadedFiles();
-                    }, 3000);
-                } else {
-                    throw new Error(result.error || result.message || 'Bilinmeyen bir hata oluştu');
-                }
-            } catch (err) {
-                statusDiv.style.color = 'var(--color-error)';
-                statusDiv.textContent = 'Hata: ' + err.message;
-            } finally {
-                uploadBtn.innerHTML = `<span>Yükle ve İşle</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>`;
-                if (selectedFile) uploadBtn.disabled = false;
+                const chats = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                return Array.isArray(chats) ? chats.filter(c => c && Array.isArray(c.turns)) : [];
+            } catch (_) {
+                return [];
             }
         }
+
+        function saveChats() {
+            const chats = state.chats
+                .filter(c => c.turns.length > 0)
+                .sort((a, b) => b.updatedAt - a.updatedAt)
+                .slice(0, MAX_SAVED_CHATS);
+            // Kota dolarsa en eski sohbetler bırakılarak tekrar denenir.
+            for (let n = chats.length; n >= 0; n--) {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(chats.slice(0, n)));
+                    return;
+                } catch (_) { /* kota dolu veya depolama kapalı */ }
+            }
+        }
+
+        function newId() {
+            return window.crypto && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+        }
+
+        function activeChat() {
+            return state.chats.find(c => c.id === state.activeId) || null;
+        }
+
+        function makeTitle(question) {
+            const oneLine = question.replace(/\s+/g, ' ').trim();
+            return oneLine.length > 60 ? `${oneLine.slice(0, 57)}…` : oneLine;
+        }
+
+        function latestAnsweredTurn(chat) {
+            if (!chat) return -1;
+            for (let i = chat.turns.length - 1; i >= 0; i--) {
+                if (chat.turns[i].state === 'done') return i;
+            }
+            return -1;
+        }
+
+        // ---- Tema ----
+
+        function currentTheme() {
+            return document.documentElement.dataset.theme
+                || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        }
+
+        function updateThemeButton() {
+            const dark = currentTheme() === 'dark';
+            const button = el('theme-btn');
+            button.innerHTML = icon(dark ? 'sun' : 'moon');
+            button.setAttribute('aria-label', dark ? 'Açık temaya geç' : 'Koyu temaya geç');
+        }
+
+        function toggleTheme() {
+            const next = currentTheme() === 'dark' ? 'light' : 'dark';
+            document.documentElement.dataset.theme = next;
+            try { localStorage.setItem(THEME_KEY, next); } catch (_) { /* depolama kapalı */ }
+            updateThemeButton();
+        }
+
+        // ---- Çekmeceler (dar ekranlarda sol panel ve kaynaklar) ----
+
+        function openDrawer(name) {
+            document.body.dataset.drawer = name;
+            el('scrim').hidden = false;
+            const panel = name === 'sidebar' ? el('sidebar') : el('sources-panel');
+            const closeBtn = panel.querySelector('[data-action="close-drawer"]');
+            if (closeBtn) closeBtn.focus();
+        }
+
+        function closeDrawer() {
+            if (!document.body.dataset.drawer) return;
+            delete document.body.dataset.drawer;
+            el('scrim').hidden = true;
+        }
+
+        // ---- Sağlık durumu: yalnızca sunucunun yanıt verip vermediğini gösterir ----
+
+        async function checkHealth() {
+            let ok = false;
+            try {
+                const response = await fetch('/health', { cache: 'no-store' });
+                ok = response.ok;
+            } catch (_) { /* sunucuya ulaşılamadı */ }
+            el('health').className = `health ${ok ? 'is-ok' : 'is-down'}`;
+            el('health-text').textContent = ok ? 'Sunucu çalışıyor' : 'Sunucuya ulaşılamıyor';
+        }
+
+        // ---- Belgeler ----
+
         async function fetchUploadedFiles() {
             try {
                 const res = await fetch('/files');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-                const listContainer = document.getElementById('uploaded-files-list');
-                if (!listContainer) return;
-
-                listContainer.innerHTML = '';
-
-                if (data.files && data.files.length > 0) {
-                    data.files.forEach(file => {
-                        const item = document.createElement('div');
-                        item.className = 'file-list-item';
-                        item.innerHTML = `
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                            ${escapeHtml(file)}
-                        `;
-                        listContainer.appendChild(item);
-                    });
-                } else {
-                    listContainer.innerHTML = '<div style="font-size: 11px; color: var(--color-text-muted); text-align: center;">Henüz yüklü dosya yok.</div>';
-                }
+                state.files = data.files || [];
+                state.filesLoaded = true;
             } catch (err) {
-                console.error("Dosya listesi alınamadı:", err);
+                console.error('Dosya listesi alınamadı:', err);
+            }
+            renderDocs();
+            renderEmptyDocs();
+        }
+
+        function renderDocs() {
+            const list = el('doc-list');
+            const filterInput = el('doc-filter');
+            const moreBtn = el('doc-more');
+            const query = filterInput.value.trim().toLocaleLowerCase('tr');
+
+            el('doc-count').textContent = state.filesLoaded ? state.files.length : '';
+            filterInput.hidden = state.files.length <= DOC_PREVIEW_COUNT;
+
+            const matches = query
+                ? state.files.filter(name => name.toLocaleLowerCase('tr').includes(query))
+                : state.files;
+            const collapsible = !query && matches.length > DOC_PREVIEW_COUNT;
+            const shown = collapsible && !state.showAllDocs ? matches.slice(0, DOC_PREVIEW_COUNT) : matches;
+
+            list.innerHTML = '';
+            shown.forEach(name => {
+                const item = document.createElement('li');
+                item.className = 'doc-item';
+                item.title = name;
+                item.innerHTML = `${icon('file', 14)}<span>${escapeHtml(name)}</span>`;
+                list.appendChild(item);
+            });
+
+            if (!state.filesLoaded) {
+                list.innerHTML = '<li class="list-note">Belgeler yüklenemedi.</li>';
+            } else if (state.files.length === 0) {
+                list.innerHTML = '<li class="list-note">Henüz belge yok.</li>';
+            } else if (matches.length === 0) {
+                list.innerHTML = '<li class="list-note">Eşleşen belge yok.</li>';
+            }
+
+            moreBtn.hidden = !collapsible;
+            moreBtn.textContent = state.showAllDocs ? 'Daha az göster' : `Tümünü göster (${matches.length})`;
+        }
+
+        function validateFile(file) {
+            const name = file.name.toLowerCase();
+            if (!ALLOWED_UPLOAD_EXTENSIONS.some(ext => name.endsWith(ext))) {
+                return 'Yalnızca PDF ve TXT dosyaları eklenebilir.';
+            }
+            if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+                return `Dosya ${MAX_UPLOAD_MB} MB sınırını aşıyor.`;
+            }
+            if (file.size === 0) return 'Dosya boş.';
+            return null;
+        }
+
+        let uploadStatusTimer = null;
+
+        function setUploadStatus(kind, text) {
+            const status = el('upload-status');
+            clearTimeout(uploadStatusTimer);
+            status.className = `upload-status is-${kind}`;
+            status.innerHTML = kind === 'busy' ? '<span class="spinner"></span>' : '';
+            status.appendChild(document.createTextNode(text));
+            if (kind === 'ok') {
+                uploadStatusTimer = setTimeout(() => { status.textContent = ''; }, 6000);
             }
         }
 
-        document.addEventListener('DOMContentLoaded', fetchUploadedFiles);
+        async function uploadFile(file) {
+            if (!file || state.uploading) return;
+            const problem = validateFile(file);
+            if (problem) {
+                setUploadStatus('error', problem);
+                return;
+            }
 
-        function useExample(text) {
-            document.getElementById('query-input').value = text;
-        }
+            const addBtn = el('add-doc-btn');
+            state.uploading = true;
+            addBtn.disabled = true;
+            setUploadStatus('busy', `${file.name} ekleniyor. Büyük PDF'lerde bu bir dakika sürebilir.`);
 
-        function setStepStatus(stepId, status) {
-            const stepEl = document.getElementById(stepId);
-            if (!stepEl) return;
+            const formData = new FormData();
+            formData.append('file', file);
 
-            stepEl.className = 'step-item'; // Reset classes
-
-            if (status === 'active') {
-                stepEl.classList.add('active');
-            } else if (status === 'completed') {
-                stepEl.classList.add('completed');
-            } else if (status === 'failed') {
-                stepEl.classList.add('failed');
+            try {
+                const response = await fetch('/upload', { method: 'POST', body: formData });
+                if (!response.ok) {
+                    throw new Error(await readErrorMessage(response, 'Dosya eklenemedi.'));
+                }
+                const result = await response.json();
+                if (result.status !== 'success') {
+                    throw new Error(result.error || result.message || 'Dosya eklenemedi.');
+                }
+                setUploadStatus('ok', `${file.name} eklendi.`);
+                await fetchUploadedFiles();
+            } catch (err) {
+                setUploadStatus('error', err instanceof TypeError ? 'Sunucuya ulaşılamadı.' : err.message);
+            } finally {
+                state.uploading = false;
+                addBtn.disabled = false;
+                el('file-upload').value = '';
             }
         }
 
-        function resetSteps() {
-            const steps = ['step-retrieval', 'step-generate', 'step-extract', 'step-verify', 'step-repair'];
-            steps.forEach(step => {
-                const el = document.getElementById(step);
-                if (el) el.className = 'step-item';
+        // ---- Sohbet listesi ----
+
+        function renderChatList() {
+            const list = el('chat-list');
+            list.innerHTML = '';
+            const chats = state.chats
+                .filter(c => c.turns.length > 0)
+                .sort((a, b) => b.updatedAt - a.updatedAt);
+
+            if (chats.length === 0) {
+                list.innerHTML = '<li class="list-note">Henüz sohbet yok.</li>';
+                return;
+            }
+
+            chats.forEach(chat => {
+                const row = document.createElement('li');
+                row.className = `chat-row${chat.id === state.activeId ? ' is-active' : ''}`;
+
+                const open = document.createElement('button');
+                open.className = 'chat-item';
+                open.dataset.action = 'open-chat';
+                open.dataset.chatId = chat.id;
+                open.textContent = chat.title || 'Adsız sohbet';
+                open.title = chat.title || '';
+                if (chat.id === state.activeId) open.setAttribute('aria-current', 'page');
+
+                const del = document.createElement('button');
+                del.className = 'icon-btn chat-del';
+                del.dataset.action = 'delete-chat';
+                del.dataset.chatId = chat.id;
+                del.setAttribute('aria-label', `“${chat.title}” sohbetini sil`);
+                del.innerHTML = icon('x', 14);
+                del.hidden = state.running && state.running.chatId === chat.id;
+
+                row.append(open, del);
+                list.appendChild(row);
             });
         }
 
-        async function submitQuery() {
-            const question = document.getElementById('query-input').value.trim();
-            if (!question) return;
+        function openChat(chatId) {
+            state.activeId = chatId;
+            const chat = activeChat();
+            const latest = latestAnsweredTurn(chat);
+            state.sourceView = latest >= 0 ? { chatId, turnIndex: latest, focusN: null } : null;
+            renderAll();
+            closeDrawer();
+            const thread = el('thread');
+            thread.scrollTop = thread.scrollHeight;
+        }
 
-            const submitBtn = document.getElementById('submit-btn');
-            const welcomeView = document.getElementById('welcome-view');
-            const dashboardView = document.getElementById('dashboard-view');
+        function startNewChat() {
+            state.activeId = null;
+            state.sourceView = null;
+            renderAll();
+            closeDrawer();
+            el('query-input').focus();
+        }
 
-            // UI state updates
-            submitBtn.disabled = true;
-            resetSteps();
-            welcomeView.style.display = 'none';
-            dashboardView.style.display = 'none';
+        function deleteChat(chatId) {
+            if (state.running && state.running.chatId === chatId) return;
+            state.chats = state.chats.filter(c => c.id !== chatId);
+            if (state.activeId === chatId) {
+                state.activeId = null;
+                state.sourceView = null;
+            }
+            saveChats();
+            renderAll();
+        }
 
-            try {
-                // Step 1: Retrieval
-                setStepStatus('step-retrieval', 'active');
-                await new Promise(r => setTimeout(r, 600)); // Visual delay
-                setStepStatus('step-retrieval', 'completed');
+        // ---- Sohbet akışı ----
 
-                // Step 2: Draft Generation
-                setStepStatus('step-generate', 'active');
-                await new Promise(r => setTimeout(r, 650));
-                setStepStatus('step-generate', 'completed');
+        function renderAll() {
+            renderChatList();
+            renderThread();
+            renderSources();
+        }
 
-                // Step 3: Claim Extraction
-                setStepStatus('step-extract', 'active');
-                await new Promise(r => setTimeout(r, 700));
-                setStepStatus('step-extract', 'completed');
+        function renderThread() {
+            const chat = activeChat();
+            const thread = el('thread');
+            thread.innerHTML = '';
+            el('chat-title').textContent = chat ? chat.title : 'Yeni sohbet';
 
-                // Step 4: Verification
-                setStepStatus('step-verify', 'active');
+            if (!chat || chat.turns.length === 0) {
+                const empty = el('empty-template').content.cloneNode(true);
+                applyIcons(empty);
+                thread.appendChild(empty);
+                renderEmptyDocs();
+                return;
+            }
 
-                // Trigger API call
-                const response = await fetch('/query', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question: question })
-                });
+            chat.turns.forEach((turn, index) => thread.appendChild(buildTurn(chat, index)));
+            typesetMath(thread.querySelectorAll('.answer'));
+        }
 
-                if (!response.ok) {
-                    throw new Error(await readErrorMessage(response, 'API isteği başarısız oldu.'));
-                }
-
-                const data = await response.json();
-
-                setStepStatus('step-verify', 'completed');
-
-                // Step 5: Repair decision
-                setStepStatus('step-repair', 'active');
-                await new Promise(r => setTimeout(r, 500));
-                setStepStatus('step-repair', 'completed');
-
-                // Render Results
-                renderDashboard(data);
-
-                dashboardView.style.display = 'flex';
-
-            } catch (err) {
-                console.error(err);
-                alert('Sorgulama sırasında bir hata oluştu: ' + err.message);
-                setStepStatus('step-retrieval', 'failed');
-                setStepStatus('step-generate', 'failed');
-                setStepStatus('step-extract', 'failed');
-                setStepStatus('step-verify', 'failed');
-                setStepStatus('step-repair', 'failed');
-            } finally {
-                submitBtn.disabled = false;
+        function renderEmptyDocs() {
+            const text = el('empty-docs-text');
+            if (!text) return;
+            const addBtn = text.parentElement.querySelector('[data-action="add-doc"]');
+            if (!state.filesLoaded) {
+                text.textContent = '';
+                addBtn.hidden = true;
+            } else if (state.files.length === 0) {
+                text.textContent = 'Henüz belge yüklenmedi. Soru sormadan önce bir PDF veya TXT ekleyin.';
+                addBtn.hidden = false;
+            } else {
+                text.textContent = `${state.files.length} belge yüklü.`;
+                addBtn.hidden = true;
             }
         }
 
-        function renderDashboard(data) {
-            // Metrics
-            const v = data.verification || {
-                total_claims: 0,
-                supported_counts: 0,
-                refuted_counts: 0,
-                unknown_counts: 0,
-                overall_confidence: 0
-            };
+        function buildTurn(chat, index) {
+            const turn = chat.turns[index];
+            const article = document.createElement('article');
+            article.className = 'turn';
+            article.dataset.turn = index;
 
-            document.getElementById('metric-total').textContent = v.total_claims;
-            document.getElementById('metric-supported').textContent = v.supported_counts;
-            document.getElementById('metric-failed').textContent = v.refuted_counts + v.unknown_counts;
-            document.getElementById('metric-confidence').textContent = (v.overall_confidence || 0).toFixed(2);
+            const question = document.createElement('div');
+            question.className = 'question';
+            question.textContent = turn.question;
+            article.appendChild(question);
 
-            // Final answer
-            renderAnswerStatus(data.status, data.attempts);
-            document.getElementById('final-answer').innerHTML = renderMarkdown(data.answer);
-
-            // Claims breakdown & Repair logic
-            const claimsContainer = document.getElementById('claims-container');
-            claimsContainer.innerHTML = '';
-
-            const verifications = v.verifications || [];
-
-            // Check if Answer Repair was executed
-            const repairPanel = document.getElementById('repair-panel');
-            const hasUnverified = v.supported_counts < v.total_claims;
-
-            if (hasUnverified && verifications.length > 0) {
-                repairPanel.style.display = 'block';
-                // Original draft would have the unsupported claims. Let's list the claims as initial draft elements:
-                const allClaimsList = verifications.map((item, idx) => `[${idx + 1}] ${item.claim}`).join('\n');
-                document.getElementById('original-draft').textContent = allClaimsList;
-                document.getElementById('repaired-draft').innerHTML = renderMarkdown(data.answer);
+            const reply = document.createElement('div');
+            reply.className = 'reply';
+            if (turn.state === 'pending') {
+                reply.appendChild(buildProgress());
+            } else if (turn.state === 'error') {
+                reply.appendChild(buildError(turn, index));
             } else {
-                repairPanel.style.display = 'none';
+                buildAnswer(reply, turn, index);
             }
+            article.appendChild(reply);
+            return article;
+        }
 
-            // Build Claim Cards
-            if (verifications.length === 0) {
-                claimsContainer.innerHTML = '<div class="evidence-item">İddia bulunamadı.</div>';
-            } else {
-                verifications.forEach((item, index) => {
-                    const card = document.createElement('div');
-                    card.className = 'claim-card';
-                    card.id = `claim-card-${index}`;
-                    card.onclick = () => toggleClaimDetail(index);
+        function buildProgress() {
+            const progress = document.createElement('div');
+            progress.className = 'progress';
+            progress.setAttribute('role', 'status');
+            const elapsed = state.running ? performance.now() - state.running.started : 0;
+            progress.innerHTML = `
+                <span class="spinner" aria-hidden="true"></span>
+                <span>Kaynaklar aranıyor, cevap yazılıyor ve iddialar doğrulanıyor</span>
+                <span class="elapsed">${formatDuration(elapsed)}</span>
+                <button type="button" class="btn-quiet" data-action="stop">${icon('stop', 14)}Durdur</button>
+                <p class="progress-note" hidden>Doğrulanamayan iddialar olursa soru yeniden aranır; bu biraz daha sürebilir.</p>
+            `;
+            return progress;
+        }
 
-                    let iconSvg = '';
-                    let statusClass = item.status;
-
-                    if (item.status === 'supported') {
-                        iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
-                    } else if (item.status === 'refuted') {
-                        iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-                    } else {
-                        iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
-                    }
-
-                    // Display friendly status names
-                    let friendlyStatus = item.status === 'supported' ? 'Doğrulandı' : item.status === 'refuted' ? 'Çürütüldü' : 'Belirsiz';
-
-                    card.innerHTML = `
-                        <div class="claim-left">
-                            <div class="claim-status-badge ${statusClass}">
-                                ${iconSvg}
-                            </div>
-                            <div class="claim-text">${escapeHtml(item.claim)}</div>
-                        </div>
-                        <div class="claim-meta">
-                            <span class="claim-type-pill">${friendlyStatus}</span>
-                            <span class="claim-confidence-pill">G: ${(item.confidence || 0).toFixed(2)}</span>
-                            <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                        </div>
-                    `;
-
-                    const detailPane = document.createElement('div');
-                    detailPane.className = 'claim-detail-pane';
-                    detailPane.id = `claim-detail-${index}`;
-
-                    const evidenceHtml = (item.evidence || []).map(ev => `<div class="evidence-item">${escapeHtml(ev)}</div>`).join('') || '<div class="evidence-item">Kanıt bulunamadı.</div>';
-
-                    detailPane.innerHTML = `
-                        <div class="reasoning-box">
-                            <strong>Karar Gerekçesi (Reasoning):</strong><br>
-                            ${escapeHtml(item.reasoning || 'Gerekçe belirtilmemiş.')}
-                        </div>
-                        <div class="evidence-list">
-                            <span class="evidence-title">Toplanan Kanıtlar (Evidence Check)</span>
-                            ${evidenceHtml}
-                        </div>
-                    `;
-
-                    claimsContainer.appendChild(card);
-                    claimsContainer.appendChild(detailPane);
-                });
+        function updateElapsed() {
+            if (!state.running) return;
+            const elapsed = performance.now() - state.running.started;
+            document.querySelectorAll('.progress .elapsed').forEach(node => {
+                node.textContent = formatDuration(elapsed);
+            });
+            if (elapsed > 20000) {
+                document.querySelectorAll('.progress-note').forEach(node => { node.hidden = false; });
             }
+        }
 
-            // Build General Sources Cards
-            const sourcesContainer = document.getElementById('sources-container');
-            sourcesContainer.innerHTML = '';
+        function buildError(turn, index) {
+            const box = document.createElement('div');
+            box.className = `reply-error${turn.aborted ? ' is-neutral' : ''}`;
+            if (!turn.aborted) box.setAttribute('role', 'alert');
+            const message = document.createElement('p');
+            message.textContent = turn.error || 'Cevap alınamadı.';
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.className = 'btn';
+            retry.dataset.action = 'retry';
+            retry.dataset.turn = index;
+            retry.innerHTML = `${icon('refresh', 14)}Tekrar dene`;
+            box.append(message, retry);
+            return box;
+        }
 
+        function buildAnswer(reply, turn, index) {
+            const data = turn.response;
             const sources = data.sources || [];
-            if (sources.length === 0) {
-                sourcesContainer.innerHTML = '<div class="evidence-item" style="grid-column: 1/-1;">Kaynak döküman bulunamadı.</div>';
-            } else {
-                sources.forEach(src => {
-                    const card = document.createElement('div');
-                    card.className = 'source-card';
-                    card.innerHTML = `
-                        <div class="source-header">
-                            <span class="source-name">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                ${escapeHtml(src.source || 'Bilinmeyen Dosya')}
-                            </span>
-                            <span class="source-id-badge">ID: ${src.id ? escapeHtml(String(src.id).substring(0, 8)) : 'N/A'}</span>
-                        </div>
-                        <div class="source-body">${escapeHtml(src.content)}</div>
-                    `;
-                    sourcesContainer.appendChild(card);
-                });
-            }
 
-            // Trigger MathJax typesetting for dynamically injected LaTeX
-            if (window.MathJax) {
-                window.MathJax.typesetPromise().catch((err) => console.log(err.message));
-            }
+            const answer = document.createElement('div');
+            answer.className = 'answer';
+            answer.innerHTML = renderMarkdown(data.answer);
+            linkCitations(answer, index, sources.length);
+            reply.appendChild(answer);
+
+            reply.appendChild(renderAnswerStatus(data.status, data.attempts));
+            reply.appendChild(buildTrace(data, index, turn.elapsedMs));
+
+            const actions = document.createElement('div');
+            actions.className = 'reply-actions';
+            actions.innerHTML = `
+                <button type="button" class="btn-quiet" data-action="copy" data-turn="${index}">${icon('copy', 14)}<span>Kopyala</span></button>
+                ${sources.length ? `<button type="button" class="btn-quiet" data-action="show-sources" data-turn="${index}">${icon('book', 14)}Kaynaklar (${sources.length})</button>` : ''}
+            `;
+            reply.appendChild(actions);
         }
 
         // QueryResponse.status → kullanıcıya gösterilen doğrulama durumu
         const ANSWER_STATUS = {
             verified: {
                 tone: 'success',
+                icon: 'check',
                 label: 'Doğrulandı',
                 desc: 'Cevaptaki iddialar kaynaklarla doğrulandı.'
             },
             repaired: {
                 tone: 'success',
+                icon: 'check',
                 label: 'Onarıldı ve doğrulandı',
-                desc: 'Desteklenmeyen iddialar çıkarıldı; onarılan cevap yeniden doğrulandı.'
+                desc: 'Desteklenmeyen iddialar çıkarıldı; kalan cevap yeniden doğrulandı.'
             },
             partially_verified: {
                 tone: 'warning',
+                icon: 'help',
                 label: 'Kısmen doğrulandı',
-                desc: 'Çürütülmüş iddia yok, ancak bazı iddialar kaynaklarla doğrulanamadı. Dikkatli kullanın.'
+                desc: 'Kaynaklarla çelişen iddia yok, ancak bazı iddialar kaynaklarda bulunamadı.'
             },
             unverified: {
                 tone: 'error',
+                icon: 'help',
                 label: 'Doğrulanmadı',
                 desc: 'Cevaptan iddia çıkarılamadığı için doğrulama yapılamadı. Kaynaklarla kontrol edin.'
             },
             no_answer: {
                 tone: 'neutral',
+                icon: 'minus',
                 label: 'Güvenilir cevap bulunamadı',
-                desc: 'Yüklenen kaynaklarda bu soruya güvenilir bir cevap bulunamadı.'
+                desc: 'Yüklenen belgelerde bu soruya güvenilir bir cevap yok.'
             }
         };
 
         function renderAnswerStatus(status, attempts) {
             const info = ANSWER_STATUS[status] || {
                 tone: 'neutral',
+                icon: 'minus',
                 label: 'Durum bilinmiyor',
                 desc: 'Cevabın doğrulama durumu alınamadı.'
             };
-            const box = document.getElementById('answer-status');
-            box.className = `answer-status ${info.tone}`;
-            document.getElementById('answer-status-label').textContent = info.label;
-            document.getElementById('answer-status-desc').textContent = info.desc;
-            document.getElementById('answer-status-attempts').textContent =
-                Number.isInteger(attempts) ? `${attempts} deneme` : '';
-            box.style.display = 'flex';
+            const box = document.createElement('div');
+            box.className = `answer-status tone-${info.tone}`;
+
+            const badge = document.createElement('span');
+            badge.className = 'status-badge';
+            badge.innerHTML = icon(info.icon, 14);
+            badge.appendChild(document.createTextNode(info.label));
+
+            const desc = document.createElement('span');
+            desc.textContent = Number.isInteger(attempts) && attempts > 1
+                ? `${info.desc} ${attempts} denemede üretildi.`
+                : info.desc;
+
+            box.append(badge, desc);
+            return box;
         }
 
-        function toggleClaimDetail(index) {
-            const cardEl = document.getElementById(`claim-card-${index}`);
-            const detailEl = document.getElementById(`claim-detail-${index}`);
+        const CLAIM_STATUS = {
+            supported: { label: 'Doğrulandı', icon: 'check' },
+            unknown: { label: 'Kaynakta bulunamadı', icon: 'help' },
+            refuted: { label: 'Kaynakla çelişiyor', icon: 'x-circle' }
+        };
 
-            if (cardEl && detailEl) {
-                const isExpanded = cardEl.classList.contains('expanded');
+        function buildTrace(data, turnIndex, elapsedMs) {
+            const sources = data.sources || [];
+            const v = data.verification;
+            const verifications = (v && v.verifications) || [];
 
-                // Toggle current
-                if (isExpanded) {
-                    cardEl.classList.remove('expanded');
-                    detailEl.style.display = 'none';
+            const parts = [];
+            if (verifications.length) {
+                parts.push(`${verifications.length} iddia kontrol edildi`);
+                if (v.unknown_counts) parts.push(`${v.unknown_counts} kaynakta bulunamadı`);
+                if (v.refuted_counts) parts.push(`${v.refuted_counts} çelişkili`);
+            } else {
+                parts.push('İddia doğrulaması yok');
+            }
+            parts.push(`${sources.length} pasaj`);
+            if (elapsedMs) parts.push(formatDuration(elapsedMs));
+
+            if (!verifications.length) {
+                const line = document.createElement('div');
+                line.className = 'trace';
+                line.textContent = parts.join(' · ');
+                return line;
+            }
+
+            const details = document.createElement('details');
+            details.className = 'trace';
+            const summary = document.createElement('summary');
+            summary.innerHTML = icon('chevron', 14, 'chev');
+            summary.appendChild(document.createTextNode(parts.join(' · ')));
+            details.appendChild(summary);
+
+            const list = document.createElement('ol');
+            list.className = 'claims';
+            verifications.forEach(item => list.appendChild(buildClaim(item, sources, turnIndex)));
+            details.appendChild(list);
+            return details;
+        }
+
+        function buildClaim(item, sources, turnIndex) {
+            const meta = CLAIM_STATUS[item.status] || CLAIM_STATUS.unknown;
+            const li = document.createElement('li');
+            li.className = `claim claim-${CLAIM_STATUS[item.status] ? item.status : 'unknown'}`;
+
+            const details = document.createElement('details');
+            const summary = document.createElement('summary');
+            summary.innerHTML = icon(meta.icon, 14);
+            const text = document.createElement('span');
+            text.textContent = item.claim;
+            const stateLabel = document.createElement('span');
+            stateLabel.className = 'claim-state';
+            stateLabel.textContent = meta.label;
+            summary.append(text, stateLabel);
+            details.appendChild(summary);
+
+            const body = document.createElement('div');
+            body.className = 'claim-body';
+            if (item.reasoning) {
+                const reason = document.createElement('p');
+                reason.className = 'claim-reason';
+                reason.textContent = item.reasoning;
+                body.appendChild(reason);
+            }
+
+            // Kanıtlar chunk içeriğinin aynısıdır; cevabın kaynaklarındaysa numarasıyla bağlanır.
+            const cited = [];
+            const extra = [];
+            (item.evidence || []).forEach(evidence => {
+                const n = sources.findIndex(src => src.content === evidence) + 1;
+                if (n > 0) cited.push(n); else extra.push(evidence);
+            });
+
+            if (cited.length) {
+                const basis = document.createElement('div');
+                basis.className = 'claim-basis';
+                basis.appendChild(document.createTextNode('Kanıt:'));
+                [...new Set(cited)].sort((a, b) => a - b).forEach(n => basis.appendChild(citeButton(turnIndex, n)));
+                body.appendChild(basis);
+            }
+            if (extra.length) {
+                const more = document.createElement('details');
+                more.className = 'extra-evidence';
+                const moreSummary = document.createElement('summary');
+                moreSummary.textContent = `Ek kanıt pasajları (${extra.length})`;
+                more.appendChild(moreSummary);
+                extra.forEach(evidence => {
+                    const quote = document.createElement('blockquote');
+                    quote.textContent = evidence;
+                    more.appendChild(quote);
+                });
+                body.appendChild(more);
+            }
+            if (!cited.length && !extra.length) {
+                const none = document.createElement('p');
+                none.className = 'claim-reason';
+                none.textContent = 'Kanıt bulunamadı.';
+                body.appendChild(none);
+            }
+
+            details.appendChild(body);
+            li.appendChild(details);
+            return li;
+        }
+
+        // ---- Atıflar: [N] → sources[N-1] ----
+
+        const CITATION_RE = /\[(\d+(?:\s*[,;–-]\s*\d+)*)\]/g;
+
+        function parseCitation(group) {
+            const numbers = [];
+            group.split(/\s*[,;]\s*/).forEach(part => {
+                const range = part.split(/\s*[–-]\s*/).map(Number);
+                if (range.length === 2 && range[1] >= range[0] && range[1] - range[0] < 20) {
+                    for (let n = range[0]; n <= range[1]; n++) numbers.push(n);
                 } else {
-                    cardEl.classList.add('expanded');
-                    detailEl.style.display = 'flex';
+                    range.forEach(n => numbers.push(n));
                 }
+            });
+            return [...new Set(numbers)];
+        }
+
+        function citedNumbers(answerText, count) {
+            const numbers = new Set();
+            for (const match of String(answerText || '').matchAll(CITATION_RE)) {
+                parseCitation(match[1]).forEach(n => { if (n >= 1 && n <= count) numbers.add(n); });
+            }
+            return numbers;
+        }
+
+        function citeButton(turnIndex, n) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'cite';
+            button.dataset.action = 'cite';
+            button.dataset.turn = turnIndex;
+            button.dataset.n = n;
+            button.textContent = n;
+            button.setAttribute('aria-label', `Kaynak ${n}`);
+            return button;
+        }
+
+        function linkCitations(root, turnIndex, count) {
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                acceptNode: node => node.parentElement.closest('code, pre, a')
+                    ? NodeFilter.FILTER_REJECT
+                    : NodeFilter.FILTER_ACCEPT
+            });
+            const nodes = [];
+            while (walker.nextNode()) nodes.push(walker.currentNode);
+
+            nodes.forEach(node => {
+                const text = node.nodeValue;
+                const fragment = document.createDocumentFragment();
+                let last = 0;
+                for (const match of text.matchAll(CITATION_RE)) {
+                    const numbers = parseCitation(match[1]).filter(n => n >= 1 && n <= count);
+                    if (!numbers.length) continue;
+                    fragment.append(text.slice(last, match.index));
+                    numbers.forEach(n => fragment.append(citeButton(turnIndex, n)));
+                    last = match.index + match[0].length;
+                }
+                if (last === 0) return;
+                fragment.append(text.slice(last));
+                node.replaceWith(fragment);
+            });
+        }
+
+        function typesetMath(elements) {
+            const targets = [...elements];
+            if (!targets.length || !window.MathJax || !MathJax.typesetPromise) return;
+            MathJax.typesetPromise(targets).catch(err => console.warn(err.message));
+        }
+
+        // ---- Kaynak paneli ----
+
+        function showSources(turnIndex, focusN) {
+            state.sourceView = { chatId: state.activeId, turnIndex, focusN: focusN ?? null };
+            renderSources();
+            if (!WIDE_QUERY.matches) openDrawer('sources');
+        }
+
+        function renderSources() {
+            const body = el('sources-body');
+            const meta = el('sources-meta');
+            const chat = activeChat();
+            const view = state.sourceView;
+            const turn = chat && view && view.chatId === chat.id ? chat.turns[view.turnIndex] : null;
+            const data = turn && turn.state === 'done' ? turn.response : null;
+
+            body.innerHTML = '';
+            el('open-sources-btn').hidden = !data;
+            document.querySelectorAll('.cite.is-active').forEach(node => node.classList.remove('is-active'));
+
+            if (!data) {
+                meta.textContent = '';
+                const hint = document.createElement('p');
+                hint.className = 'sources-empty';
+                hint.textContent = 'Bir cevaptaki numaralı atıfa tıklayın; dayandığı pasaj burada açılır.';
+                body.appendChild(hint);
+                return;
+            }
+
+            const sources = data.sources || [];
+            meta.textContent = `${view.turnIndex + 1}. soru · ${sources.length} pasaj`;
+            if (!sources.length) {
+                const none = document.createElement('p');
+                none.className = 'sources-empty';
+                none.textContent = 'Bu cevap için pasaj getirilmedi.';
+                body.appendChild(none);
+                return;
+            }
+
+            if (view.focusN) {
+                document.querySelectorAll(`.turn[data-turn="${view.turnIndex}"] .cite[data-n="${view.focusN}"]`)
+                    .forEach(node => node.classList.add('is-active'));
+            }
+
+            const cited = citedNumbers(data.answer, sources.length);
+            const citedList = sources.map((_, i) => i + 1).filter(n => cited.has(n));
+            const otherList = sources.map((_, i) => i + 1).filter(n => !cited.has(n));
+
+            if (citedList.length) {
+                const group = document.createElement('section');
+                group.className = 'sources-group';
+                const heading = document.createElement('h3');
+                heading.textContent = 'Cevapta atıf yapılanlar';
+                group.appendChild(heading);
+                citedList.forEach(n => group.appendChild(buildSourceItem(data, n, view.focusN === n)));
+                body.appendChild(group);
+            }
+
+            if (otherList.length) {
+                const group = document.createElement('details');
+                group.className = 'more-sources';
+                group.open = !citedList.length || otherList.includes(view.focusN);
+                const summary = document.createElement('summary');
+                summary.innerHTML = icon('chevron', 12, 'chev');
+                summary.appendChild(document.createTextNode(
+                    citedList.length ? `Getirilen diğer pasajlar (${otherList.length})` : `Getirilen pasajlar (${otherList.length})`
+                ));
+                group.appendChild(summary);
+                otherList.forEach(n => group.appendChild(buildSourceItem(data, n, view.focusN === n)));
+                body.appendChild(group);
+            }
+
+            if (view.focusN) {
+                const focused = el(`source-${view.focusN}`);
+                if (focused) requestAnimationFrame(() => focused.scrollIntoView({ block: 'nearest' }));
+            } else {
+                body.scrollTop = 0;
             }
         }
+
+        function buildSourceItem(data, n, focused) {
+            const src = data.sources[n - 1];
+            const item = document.createElement('details');
+            item.className = `source${focused ? ' is-focused' : ''}`;
+            item.id = `source-${n}`;
+            item.open = focused;
+
+            const summary = document.createElement('summary');
+            const number = document.createElement('span');
+            number.className = 'source-n';
+            number.textContent = n;
+            const name = document.createElement('span');
+            name.className = 'source-name';
+            name.textContent = src.source || 'Bilinmeyen belge';
+            name.title = src.source || '';
+            const preview = document.createElement('span');
+            preview.className = 'source-preview';
+            preview.textContent = src.content;
+            summary.append(number, name, preview);
+            item.appendChild(summary);
+
+            const text = document.createElement('p');
+            text.className = 'source-text';
+            text.textContent = src.content;
+            item.appendChild(text);
+
+            const verifications = (data.verification && data.verification.verifications) || [];
+            const dependent = verifications.filter(v => (v.evidence || []).includes(src.content));
+            if (dependent.length) {
+                const box = document.createElement('div');
+                box.className = 'source-claims';
+                const heading = document.createElement('p');
+                heading.textContent = 'Bu pasajı kanıt olarak kullanan iddialar';
+                const list = document.createElement('ul');
+                dependent.forEach(v => {
+                    const meta = CLAIM_STATUS[v.status] || CLAIM_STATUS.unknown;
+                    const li = document.createElement('li');
+                    li.className = `claim-${CLAIM_STATUS[v.status] ? v.status : 'unknown'}`;
+                    li.innerHTML = icon(meta.icon, 14);
+                    const claimText = document.createElement('span');
+                    claimText.textContent = v.claim;
+                    li.appendChild(claimText);
+                    li.title = meta.label;
+                    list.appendChild(li);
+                });
+                box.append(heading, list);
+                item.appendChild(box);
+            }
+            return item;
+        }
+
+        // ---- Soru gönderme ----
+
+        function setComposerBusy(busy) {
+            const button = el('submit-btn');
+            button.classList.toggle('is-stop', busy);
+            button.innerHTML = icon(busy ? 'stop' : 'arrow-up', 18);
+            button.setAttribute('aria-label', busy ? 'Durdur' : 'Gönder');
+        }
+
+        function setComposerNote(text, isError) {
+            const note = el('composer-note');
+            note.textContent = text || 'Enter gönderir, Shift+Enter yeni satır. Her soru bağımsız yanıtlanır.';
+            note.classList.toggle('is-error', Boolean(isError));
+            note.classList.toggle('composer-hint', !isError);
+        }
+
+        function autosizeInput() {
+            const input = el('query-input');
+            input.style.height = 'auto';
+            input.style.height = `${Math.min(input.scrollHeight, 200)}px`;
+            const length = input.value.length;
+            el('char-count').textContent = length > MAX_QUESTION_LENGTH * 0.8 ? `${length} / ${MAX_QUESTION_LENGTH}` : '';
+        }
+
+        async function ask(rawQuestion) {
+            const question = rawQuestion.trim();
+            if (state.running) return;
+            if (question.length < MIN_QUESTION_LENGTH) {
+                setComposerNote(`Soru en az ${MIN_QUESTION_LENGTH} karakter olmalı.`, true);
+                el('query-input').focus();
+                return;
+            }
+
+            let chat = activeChat();
+            if (!chat) {
+                chat = { id: newId(), title: makeTitle(question), updatedAt: Date.now(), turns: [] };
+                state.chats.push(chat);
+                state.activeId = chat.id;
+            }
+            chat.turns.push({ question, state: 'pending' });
+
+            const input = el('query-input');
+            input.value = '';
+            autosizeInput();
+            setComposerNote();
+            await runTurn(chat, chat.turns.length - 1);
+        }
+
+        async function runTurn(chat, index) {
+            const turn = chat.turns[index];
+            turn.state = 'pending';
+            delete turn.error;
+            delete turn.aborted;
+            delete turn.response;
+
+            const controller = new AbortController();
+            state.running = { chatId: chat.id, index, controller, started: performance.now() };
+            state.running.timer = setInterval(updateElapsed, 1000);
+            chat.updatedAt = Date.now();
+            saveChats();
+            renderChatList();
+            if (state.activeId === chat.id) {
+                renderThread();
+                scrollToTurn(index);
+            }
+            setComposerBusy(true);
+
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: turn.question }),
+                    signal: controller.signal
+                });
+                if (!response.ok) {
+                    throw new Error(await readErrorMessage(response, 'Sunucu isteği tamamlayamadı.'));
+                }
+                turn.response = await response.json();
+                turn.state = 'done';
+            } catch (err) {
+                turn.state = 'error';
+                if (err.name === 'AbortError') {
+                    turn.aborted = true;
+                    turn.error = 'Durduruldu.';
+                } else if (err instanceof TypeError) {
+                    turn.error = 'Sunucuya ulaşılamadı. Bağlantıyı kontrol edip tekrar deneyin.';
+                } else {
+                    turn.error = err.message || 'Cevap alınamadı.';
+                }
+            } finally {
+                turn.elapsedMs = Math.round(performance.now() - state.running.started);
+                clearInterval(state.running.timer);
+                state.running = null;
+                setComposerBusy(false);
+                chat.updatedAt = Date.now();
+                saveChats();
+                renderChatList();
+                if (state.activeId === chat.id) {
+                    if (turn.state === 'done') state.sourceView = { chatId: chat.id, turnIndex: index, focusN: null };
+                    renderThread();
+                    renderSources();
+                    scrollToTurn(index);
+                }
+                announce(turn.state === 'done' ? 'Cevap hazır.' : turn.error);
+            }
+        }
+
+        function scrollToTurn(index) {
+            const target = el('thread').querySelector(`.turn[data-turn="${index}"]`);
+            if (target) target.scrollIntoView({ block: 'start' });
+        }
+
+        async function copyAnswer(index, button) {
+            const chat = activeChat();
+            const turn = chat && chat.turns[index];
+            if (!turn || !turn.response) return;
+            const label = button.querySelector('span');
+            try {
+                await navigator.clipboard.writeText(turn.response.answer);
+                label.textContent = 'Kopyalandı';
+            } catch (_) {
+                label.textContent = 'Kopyalanamadı';
+            }
+            setTimeout(() => { label.textContent = 'Kopyala'; }, 2000);
+        }
+
+        // ---- Olaylar ----
+
+        function handleClick(event) {
+            const target = event.target.closest('[data-action], [data-question]');
+            if (!target) return;
+
+            if (target.dataset.question) {
+                ask(target.dataset.question);
+                return;
+            }
+
+            const index = Number(target.dataset.turn);
+            switch (target.dataset.action) {
+                case 'cite':
+                    showSources(index, Number(target.dataset.n));
+                    break;
+                case 'show-sources':
+                    showSources(index, null);
+                    break;
+                case 'open-sources':
+                    openDrawer('sources');
+                    break;
+                case 'copy':
+                    copyAnswer(index, target);
+                    break;
+                case 'retry': {
+                    const chat = activeChat();
+                    if (chat && !state.running) runTurn(chat, index);
+                    break;
+                }
+                case 'stop':
+                    if (state.running) state.running.controller.abort();
+                    break;
+                case 'open-chat':
+                    openChat(target.dataset.chatId);
+                    break;
+                case 'delete-chat':
+                    deleteChat(target.dataset.chatId);
+                    break;
+                case 'add-doc':
+                    el('file-upload').click();
+                    break;
+                case 'open-sidebar':
+                    openDrawer('sidebar');
+                    break;
+                case 'close-drawer':
+                    closeDrawer();
+                    break;
+            }
+        }
+
+        function bindUploadDrop() {
+            const zone = el('docs-section');
+            const uploadZone = el('upload-zone');
+            zone.addEventListener('dragover', event => {
+                event.preventDefault();
+                uploadZone.classList.add('is-drop');
+            });
+            zone.addEventListener('dragleave', event => {
+                if (!zone.contains(event.relatedTarget)) uploadZone.classList.remove('is-drop');
+            });
+            zone.addEventListener('drop', event => {
+                event.preventDefault();
+                uploadZone.classList.remove('is-drop');
+                uploadFile(event.dataTransfer.files[0]);
+            });
+            // Bölge dışına bırakılan dosya tarayıcıda açılıp sayfadan çıkmasın
+            window.addEventListener('dragover', event => event.preventDefault());
+            window.addEventListener('drop', event => event.preventDefault());
+        }
+
+        function init() {
+            applyIcons(document);
+            updateThemeButton();
+            setComposerBusy(false);
+
+            state.chats = loadChats();
+            // Sayfa yenilenirken yarıda kalan sorular hata olarak işaretlenir.
+            state.chats.forEach(chat => chat.turns.forEach(turn => {
+                if (turn.state === 'pending') {
+                    turn.state = 'error';
+                    turn.error = 'Sayfa yenilendiği için bu soru yarıda kaldı.';
+                }
+            }));
+
+            document.addEventListener('click', handleClick);
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') closeDrawer();
+            });
+
+            el('composer').addEventListener('submit', event => {
+                event.preventDefault();
+                if (state.running) state.running.controller.abort();
+                else ask(el('query-input').value);
+            });
+            el('query-input').addEventListener('keydown', event => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+                    event.preventDefault();
+                    el('composer').requestSubmit();
+                }
+            });
+            el('query-input').addEventListener('input', () => {
+                autosizeInput();
+                setComposerNote();
+            });
+
+            el('new-chat-btn').addEventListener('click', startNewChat);
+            el('theme-btn').addEventListener('click', toggleTheme);
+            el('add-doc-btn').addEventListener('click', () => el('file-upload').click());
+            el('file-upload').addEventListener('change', event => uploadFile(event.target.files[0]));
+            el('doc-filter').addEventListener('input', renderDocs);
+            el('doc-more').addEventListener('click', () => {
+                state.showAllDocs = !state.showAllDocs;
+                renderDocs();
+            });
+            bindUploadDrop();
+
+            WIDE_QUERY.addEventListener('change', event => {
+                if (event.matches && document.body.dataset.drawer === 'sources') closeDrawer();
+            });
+
+            renderAll();
+            renderDocs();
+            fetchUploadedFiles();
+            checkHealth();
+            setInterval(checkHealth, 30000);
+            el('query-input').focus();
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 
